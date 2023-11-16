@@ -6,9 +6,9 @@ import os
 import os
 from pose_estimation import PoseDetector
 
-output_folder_path = "/home/lacie/Datasets/KISA/project/Abandonment/"
-folder_path = "/home/lacie/Datasets/KISA/train/Abandonment"
-label = "Abandonment"
+output_folder_path = "/home/lacie/Datasets/KISA/project/Loitering/"
+folder_path = "/home/lacie/Datasets/KISA/train/Loitering"
+label = "Loitering"
 
 def time2second(time_string):
     time_format = "%H:%M:%S"
@@ -16,7 +16,7 @@ def time2second(time_string):
     seconds = time_object.hour * 3600 + time_object.minute * 60 + time_object.second
     return seconds
 
-def createLabel(label, file_name, areas, output_folder_path, poses = []):
+def createLabel(label, file_name, areas, output_folder_path, poses = [], boxes = []):
     # Create the root element
     root = ET.Element("KisaLibraryIndex")
 
@@ -39,9 +39,14 @@ def createLabel(label, file_name, areas, output_folder_path, poses = []):
         ET.SubElement(areaD, "Point").text = str(areas[0]) + "," + str(areas[1])
         ET.SubElement(areaD, "Point").text = str(areas[0] + areas[2]) + "," + str(areas[1] + areas[3]) 
 
+    if boxes != []:
+        for box in boxes:
+            person = ET.SubElement(header, "PersonBox")
+            ET.SubElement(person, "BoundingBox").text = str(box[0]) + "," + str(box[1]) + "," + str(box[2]) + "," + str(box[3])
+    
     if poses != []:
         for pose in poses:
-            person = ET.SubElement(header, "Person")
+            person = ET.SubElement(header, "PersonPose")
             for id, cx, cy in pose:
                 ET.SubElement(person, "Point", id=str(id)).text = str(cx) + "," + str(cy)
 
@@ -118,11 +123,11 @@ def downsampling(xml_path, video_path):
         if frame_count % fps == 0:
             if frame_count >= time2second(start_time)*fps - 100 and frame_count <= (time2second(start_time) + time2second(alarm_duration))*fps:
                 
-                img, poses = detector.findPose(frame)
+                img, poses, boxes = detector.findPose(frame)
                 # Save the frame as an image file
                 cv2.imwrite(output_folder_path_frames + "frame%d.jpg" % (int)(frame_count/30), frame)
 
-                createLabel(label, "frame%d.jpg" % (int)(frame_count/30), abnormal_area, output_folder_path_labels, poses)
+                createLabel(label, "frame%d.jpg" % (int)(frame_count/30), abnormal_area, output_folder_path_labels, poses, boxes)
 
                 print("Saved frame%d.jpg" % (int)(frame_count/30))
                 print("Path:", output_folder_path_frames + "frame%d.jpg" % (int)(frame_count/30))

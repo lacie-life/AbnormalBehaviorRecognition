@@ -35,6 +35,7 @@ class PoseDetector:
                 humanObjects.append(obj)
 
         self.poses = []
+        self.boxes = []
 
         print(humanObjects)
 
@@ -43,6 +44,7 @@ class PoseDetector:
             cropped_img = imgRGB[bbox[1]:bbox[3], bbox[0]:bbox[2]]
             
             pose = self.pose.process(cropped_img)
+            self.boxes.append(bbox)
 
             if pose.pose_landmarks:
                 tmp_pose = []
@@ -59,7 +61,7 @@ class PoseDetector:
                 self.poses.append(tmp_pose)
         
         img = cv2.cvtColor(imgRGB, cv2.COLOR_RGB2BGR)
-        return img, self.poses
+        return img, self.poses, self.boxes
 
     def getPosition(self, img, draw=True):
         lmList= []
