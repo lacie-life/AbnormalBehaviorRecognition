@@ -7,6 +7,7 @@ import os
 
 output_folder_path = "/home/lacie/Github/AbnormalBehaviorRecognition/data/kisa/abandonment/"
 folder_path = "/home/lacie/Datasets/KISA/train/Abandonment"
+label = "Abandonment"
 
 def time2second(time_string):
     time_format = "%H:%M:%S"
@@ -14,10 +15,38 @@ def time2second(time_string):
     seconds = time_object.hour * 3600 + time_object.minute * 60 + time_object.second
     return seconds
 
-def downsampling(xml_path, video_path, output_folder_path):
+def createLabel(label, file_name, output_folder_path):
+    # Create the root element
+    root = ET.Element("KisaLibraryIndex")
+
+    # Create the 'Library' element
+    library = ET.SubElement(root, "Library")
+
+    # Add child elements to 'Library'
+    ET.SubElement(library, "Scenario").text = label
+    ET.SubElement(library, "Dataset").text = "KISA2016"
+    ET.SubElement(library, "Libversion").text = "1.0"
+
+    # Create the 'Clip' element
+    clip = ET.SubElement(library, "Clip")
+
+    # Create the 'Header' element and add child elements to it
+    header = ET.SubElement(clip, "Header")
+    ET.SubElement(header, "Filename").text = file_name
+
+    file_name = file_name.replace('.jpg', '.xml')
+
+    # Create an ElementTree object and write the XML to a file
+    tree = ET.ElementTree(root)
+    tree.write(output_folder_path + file_name, encoding="utf-8", xml_declaration=True)
+
+def downsampling(xml_path, video_path):
     
-    output_folder_path = output_folder_path + video_path.split("/")[-1].split(".")[0] + "/frames/"
-    os.makedirs(output_folder_path, exist_ok=True)
+    output_folder_path_frames = output_folder_path + video_path.split("/")[-1].split(".")[0] + "/frames/"
+    output_folder_path_labels = output_folder_path + video_path.split("/")[-1].split(".")[0] + "/labels/"
+    os.makedirs(output_folder_path_frames, exist_ok=True)
+    os.makedirs(output_folder_path_labels, exist_ok=True)
+
     tree = ET.parse(xml_path)
     root = tree.getroot()
 
@@ -54,28 +83,25 @@ def downsampling(xml_path, video_path, output_folder_path):
 
         # Check if we're at a multiple of the frame rate (i.e. every second)
         if frame_count % fps == 0:
-            if frame_count >= time2second(start_time)*fps - 600 and frame_count <= (time2second(start_time) + time2second(alarm_duration))*fps:
-                # fgMask = np.zeros_like(frame)
-                # diff = cv2.absdiff(background, frame)
-                # diff = cv2.convertScaleAbs(diff)
-
-                # # fbMask = bgSubtractor.apply(frame)
-
-                # if len(fgMask.shape) > 2 or fgMask.dtype != np.uint8:
-                #     fgMask = cv2.cvtColor(diff, cv2.COLOR_BGR2GRAY)
-                #     _, fgMask = cv2.threshold(fgMask, 30, 255, cv2.THRESH_BINARY)
-
-                # masked_image = cv2.bitwise_and(frame, frame, mask=fgMask)
+            if frame_count >= time2second(start_time)*fps - 100 and frame_count <= (time2second(start_time) + time2second(alarm_duration))*fps:
 
                 # Save the frame as an image file
-                cv2.imwrite(output_folder_path + "frame%d.jpg" % (int)(frame_count/30), frame)
+                cv2.imwrite(output_folder_path_frames + "frame%d.jpg" % (int)(frame_count/30), frame)
+                createLabel(label, "frame%d.jpg" % (int)(frame_count/30), output_folder_path_labels)
+
                 print("Saved frame%d.jpg" % (int)(frame_count/30))
-                print("Path:", output_folder_path + "frame%d.jpg" % (int)(frame_count/30))
+                print("Path:", output_folder_path_frames + "frame%d.jpg" % (int)(frame_count/30))
+                print("Label:", output_folder_path_labels + "frame%d.xml" % (int)(frame_count/30))
+                
             else:
                 # Save the frame as an image file
-                cv2.imwrite(output_folder_path + "frame%d.jpg" % (int)(frame_count/30), frame)
+                cv2.imwrite(output_folder_path_frames + "frame%d.jpg" % (int)(frame_count/30), frame)
+                createLabel("Normal", "frame%d.jpg" % (int)(frame_count/30), output_folder_path_labels)
+
                 print("Saved frame%d.jpg" % (int)(frame_count/30))
-                print("Path:", output_folder_path + "frame%d.jpg" % (int)(frame_count/30))
+                print("Path:", output_folder_path_frames + "frame%d.jpg" % (int)(frame_count/30))
+                print("Label:", output_folder_path_labels + "frame%d.xml" % (int)(frame_count/30))
+
 
         # Increment the frame count
         frame_count += 1
@@ -99,7 +125,7 @@ print(mp4_file_paths)
 print(xml_file_paths)
 
 for i in range(len(mp4_file_paths)):
-    downsampling(xml_file_paths[i], mp4_file_paths[i], output_folder_path)
+    downsampling(xml_file_paths[i], mp4_file_paths[i])
 
 
 
