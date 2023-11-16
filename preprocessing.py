@@ -5,9 +5,9 @@ import numpy as np
 import os
 import os
 
-output_folder_path = "/home/lacie/Github/AbnormalBehaviorRecognition/data/kisa/abandonment/"
-folder_path = "/home/lacie/Datasets/KISA/train/Abandonment"
-label = "Abandonment"
+output_folder_path = "/home/lacie/Github/AbnormalBehaviorRecognition/data/kisa/Loitering/"
+folder_path = "/home/lacie/Datasets/KISA/train/Loitering"
+label = "Loitering"
 
 def time2second(time_string):
     time_format = "%H:%M:%S"
@@ -52,9 +52,13 @@ def downsampling(xml_path, video_path):
 
     start_time = root.find(".//StartTime").text
     alarm_duration = root.find(".//AlarmDuration").text
+    detect_area = root.find(".//DetectArea")
+
+    points = [tuple(map(int, point.text.split(','))) for point in detect_area.findall("Point")]
 
     print("StartTime:", start_time)
     print("AlarmDuration:", alarm_duration)
+    print("Detection area points:", points)
 
     # Open the video file
     cap = cv2.VideoCapture(video_path)
@@ -77,6 +81,11 @@ def downsampling(xml_path, video_path):
 
         if frame is None:
             break
+
+        detectMask = np.zeros((frame.shape[0], frame.shape[1]), dtype=np.uint8)
+        cv2.fillPoly(detectMask, [np.array(points)], 255)
+        _, detectMask = cv2.threshold(detectMask, 1, 255, cv2.THRESH_BINARY)
+        frame = cv2.bitwise_and(frame, frame, mask=detectMask)
 
         if frame_count == time2second(start_time) * fps - 600:
             background = frame
