@@ -15,7 +15,7 @@ def time2second(time_string):
     seconds = time_object.hour * 3600 + time_object.minute * 60 + time_object.second
     return seconds
 
-def createLabel(label, file_name, output_folder_path):
+def createLabel(label, file_name, areas, output_folder_path):
     # Create the root element
     root = ET.Element("KisaLibraryIndex")
 
@@ -33,6 +33,10 @@ def createLabel(label, file_name, output_folder_path):
     # Create the 'Header' element and add child elements to it
     header = ET.SubElement(clip, "Header")
     ET.SubElement(header, "Filename").text = file_name
+    areaD = ET.SubElement(header, "Area")
+
+    ET.SubElement(areaD, "Point").text = str(areas[0]) + "," + str(areas[1])
+    ET.SubElement(areaD, "Point").text = str(areas[0] + areas[2]) + "," + str(areas[1] + areas[3]) 
 
     file_name = file_name.replace('.jpg', '.xml')
 
@@ -54,11 +58,22 @@ def downsampling(xml_path, video_path):
     alarm_duration = root.find(".//AlarmDuration").text
     detect_area = root.find(".//DetectArea")
 
+    tagArea = ".//" + label
+    area = root.find(tagArea)
+    abnormal_area = []
+
+    if area is None:
+        print("No area")
+    else:
+        abnormal_area = [tuple(map(int, point.text.split(','))) for point in area.findall("Point")]
+        abnormal_area = cv2.boundingRect(np.array(abnormal_area))
+
     points = [tuple(map(int, point.text.split(','))) for point in detect_area.findall("Point")]
 
     print("StartTime:", start_time)
     print("AlarmDuration:", alarm_duration)
     print("Detection area points:", points)
+    print("Abnormal area:", abnormal_area)
 
     # Open the video file
     cap = cv2.VideoCapture(video_path)
@@ -96,7 +111,7 @@ def downsampling(xml_path, video_path):
 
                 # Save the frame as an image file
                 cv2.imwrite(output_folder_path_frames + "frame%d.jpg" % (int)(frame_count/30), frame)
-                createLabel(label, "frame%d.jpg" % (int)(frame_count/30), output_folder_path_labels)
+                createLabel(label, "frame%d.jpg" % (int)(frame_count/30), abnormal_area, output_folder_path_labels)
 
                 print("Saved frame%d.jpg" % (int)(frame_count/30))
                 print("Path:", output_folder_path_frames + "frame%d.jpg" % (int)(frame_count/30))
@@ -105,7 +120,7 @@ def downsampling(xml_path, video_path):
             else:
                 # Save the frame as an image file
                 cv2.imwrite(output_folder_path_frames + "frame%d.jpg" % (int)(frame_count/30), frame)
-                createLabel("Normal", "frame%d.jpg" % (int)(frame_count/30), output_folder_path_labels)
+                createLabel("Normal", "frame%d.jpg" % (int)(frame_count/30), abnormal_area, output_folder_path_labels)
 
                 print("Saved frame%d.jpg" % (int)(frame_count/30))
                 print("Path:", output_folder_path_frames + "frame%d.jpg" % (int)(frame_count/30))
