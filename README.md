@@ -14,7 +14,6 @@ Abnormal Behavior Recognition
     - [ ] Action recognition model
 
 - [ ] Train model
-    - [ ] Pose estimation model
     - [ ] Action recognition model
 
 - [ ] Postprocessing data
