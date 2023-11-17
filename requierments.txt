@@ -1,1 +1,5 @@
 lxml
+ultralytics
+mediapipe
+opencv-python
+
