@@ -3,8 +3,11 @@ import xml.etree.ElementTree as ET
 from datetime import datetime
 import numpy as np
 import os
-import os
-from utils.pose_estimation import PoseDetector
+import sys
+
+sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
+
+from tools.pose_estimation import PoseDetector
 
 output_folder_path = "/home/lacie/Datasets/KISA/project/FireDetection/"
 folder_path = "/home/lacie/Datasets/KISA/train/FireDetection"
@@ -59,9 +62,16 @@ def createLabel(label, file_name, areas, output_folder_path, poses = [], boxes =
 def downsampling(xml_path, video_path):
     
     output_folder_path_frames = output_folder_path + video_path.split("/")[-1].split(".")[0] + "/frames/"
+    output_folder_path_frames_normal = output_folder_path_frames + "normals/"
+    output_folder_path_frame_abnormal = output_folder_path_frames + label + "/"
+    os.makedirs(output_folder_path_frames_normal, exist_ok=True)
+    os.makedirs(output_folder_path_frame_abnormal, exist_ok=True)
+
     output_folder_path_labels = output_folder_path + video_path.split("/")[-1].split(".")[0] + "/labels/"
-    os.makedirs(output_folder_path_frames, exist_ok=True)
-    os.makedirs(output_folder_path_labels, exist_ok=True)
+    output_folder_path_labels_normal = output_folder_path_labels + "normals/"
+    output_folder_path_labels_abnormal = output_folder_path_labels + label + "/"
+    os.makedirs(output_folder_path_labels_normal, exist_ok=True)
+    os.makedirs(output_folder_path_labels_abnormal, exist_ok=True)
 
     tree = ET.parse(xml_path)
     root = tree.getroot()
@@ -120,27 +130,27 @@ def downsampling(xml_path, video_path):
             background = frame
 
         # Check if we're at a multiple of the frame rate (i.e. every second)
-        if frame_count % fps == 0:
-            if frame_count >= time2second(start_time)*fps - 100 and frame_count <= (time2second(start_time) + time2second(alarm_duration))*fps:
+        if frame_count % 10 == 0:
+            if frame_count >= time2second(start_time)*fps - 150 and frame_count <= (time2second(start_time) + time2second(alarm_duration))*fps:
                 
                 img, poses, boxes = detector.findPose(frame)
                 # Save the frame as an image file
-                cv2.imwrite(output_folder_path_frames + "frame%d.jpg" % (int)(frame_count/30), frame)
+                cv2.imwrite(output_folder_path_frame_abnormal + "frame%d.jpg" % (int)(frame_count), frame)
 
-                createLabel(label, "frame%d.jpg" % (int)(frame_count/30), abnormal_area, output_folder_path_labels, poses, boxes)
+                createLabel(label, "frame%d.jpg" % (int)(frame_count), abnormal_area, output_folder_path_labels_abnormal, poses, boxes)
 
-                print("Saved frame%d.jpg" % (int)(frame_count/30))
-                print("Path:", output_folder_path_frames + "frame%d.jpg" % (int)(frame_count/30))
-                print("Label:", output_folder_path_labels + "frame%d.xml" % (int)(frame_count/30))
+                print("Saved frame%d.jpg" % (int)(frame_count))
+                print("Path:", output_folder_path_frame_abnormal + "frame%d.jpg" % (int)(frame_count))
+                print("Label:", output_folder_path_labels_abnormal + "frame%d.xml" % (int)(frame_count))
                 
             else:
                 # Save the frame as an image file
-                cv2.imwrite(output_folder_path_frames + "frame%d.jpg" % (int)(frame_count/30), frame)
-                createLabel("Normal", "frame%d.jpg" % (int)(frame_count/30), abnormal_area, output_folder_path_labels)
+                cv2.imwrite(output_folder_path_frames_normal + "frame%d.jpg" % (int)(frame_count), frame)
+                createLabel("Normal", "frame%d.jpg" % (int)(frame_count), abnormal_area, output_folder_path_labels_normal)
 
-                print("Saved frame%d.jpg" % (int)(frame_count/30))
-                print("Path:", output_folder_path_frames + "frame%d.jpg" % (int)(frame_count/30))
-                print("Label:", output_folder_path_labels + "frame%d.xml" % (int)(frame_count/30))
+                print("Saved frame%d.jpg" % (int)(frame_count))
+                print("Path:", output_folder_path_frames_normal + "frame%d.jpg" % (int)(frame_count))
+                print("Label:", output_folder_path_labels_normal + "frame%d.xml" % (int)(frame_count))
 
 
         # Increment the frame count
