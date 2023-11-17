@@ -11,10 +11,10 @@ Abnormal Behavior Recognition
 
 - [ ] Chose model
     - [x] Pose estimation model
-    - [ ] Action recognition model
+    - [ ] Behavior recognition model
 
 - [ ] Train model
-    - [ ] Action recognition model
+    - [ ] Behavior recognition model
 
 - [ ] Postprocessing data
     - [ ] Calculate start and end time of abnormal behavior
@@ -22,3 +22,8 @@ Abnormal Behavior Recognition
 
 - [ ] Test model
 
+## Acknowledgement
+
+- [Pose estimation](https://github.com/BakingBrains/Pose_estimation/tree/main)
+- [Yolov5](https://pytorch.org/hub/ultralytics_yolov5/)
+- [Action recognition](https://github.com/cjf8899/Development_of_abnormal_behavior_recognition)

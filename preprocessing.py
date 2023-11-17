@@ -6,9 +6,9 @@ import os
 import os
 from pose_estimation import PoseDetector
 
-output_folder_path = "/home/lacie/Datasets/KISA/project/Loitering/"
-folder_path = "/home/lacie/Datasets/KISA/train/Loitering"
-label = "Loitering"
+output_folder_path = "/home/lacie/Datasets/KISA/project/FireDetection/"
+folder_path = "/home/lacie/Datasets/KISA/train/FireDetection"
+label = "FireDetection"
 
 def time2second(time_string):
     time_format = "%H:%M:%S"
