@@ -4,7 +4,7 @@ from datetime import datetime
 import numpy as np
 import os
 import os
-from pose_estimation import PoseDetector
+from utils.pose_estimation import PoseDetector
 
 output_folder_path = "/home/lacie/Datasets/KISA/project/FireDetection/"
 folder_path = "/home/lacie/Datasets/KISA/train/FireDetection"

@@ -1,4 +1,4 @@
-from dataset.dataset2d import *
+from dataset.kisadataloader import *
 from torch.utils.data import Dataset, DataLoader
 import getpass
 import os
@@ -11,17 +11,16 @@ import torch
 from torch import nn
 from torch import optim
 from torch.optim import lr_scheduler
-from models.model2d import generate_model
-from opts import parse_opts
+from models.model import generate_model
+from utils.opts import parse_opts
 from torch.autograd import Variable
 import time
 import sys
-from utils import *
+from utils.utils import *
 #from utils import AverageMeter, calculate_accuracy
 import pdb
 import json
 import torch.nn.functional as F
-import torchvision.transforms as transforms
 
 if __name__=="__main__":
     opt = parse_opts()
@@ -30,35 +29,15 @@ if __name__=="__main__":
     opt.arch = '{}-{}'.format(opt.model, opt.model_depth)
     torch.manual_seed(opt.manual_seed)
 
-    
-    
-    
     print("Preprocessing train data ...")
-    transform_train = transforms.Compose([
-        transforms.Resize((448,448)),
-#         transforms.RandomCrop((112,112), padding=4),
-        transforms.RandomHorizontalFlip(),
-#         transforms.RandomRotation(20),
-#         ImageNetPolicy(), 
-        transforms.ToTensor(),
-        transforms.Normalize((0.4173, 0.4212, 0.4089), (0.1736, 0.1715, 0.1759)),
-#        RandomErasing(probability=0.5, mean=[0.4802, 0.4481, 0.3975])
-        
-    ])
-    transform_val = transforms.Compose([
-        transforms.Resize((448,448)),
-        transforms.ToTensor(),
-        transforms.Normalize((0.4109, 0.4135, 0.3995), (0.1745, 0.1721, 0.1746)),
-    ])
     
-    
-    train_data = CCTV_loader_2d(train=1, opt=opt, transform = transform_train)
+    train_data = CCTV_loader(train=1, opt=opt)
     
     print("Length of train data = ", len(train_data))
 
     print("Preprocessing validation data ...")
     
-    val_data = CCTV_loader_2d(train=2, opt=opt, transform = transform_val)
+    val_data = CCTV_loader(train=2, opt=opt)
     
     print("Length of validation data = ", len(val_data))
     
@@ -67,11 +46,9 @@ if __name__=="__main__":
 
     print("Preparing datatloaders ...")
     
-    
-    
     train_dataloader = DataLoader(train_data, batch_size = opt.batch_size, shuffle=True, num_workers = opt.n_workers, pin_memory = True)
 
-    val_dataloader = DataLoader(val_data, batch_size = 1, shuffle=False, num_workers = opt.n_workers, pin_memory = True)
+    val_dataloader = DataLoader(val_data, batch_size = 1, shuffle=True, num_workers = opt.n_workers, pin_memory = True)
     
     print("Length of train datatloader = ",len(train_dataloader))
     print("Length of validation datatloader = ",len(val_dataloader))    
@@ -131,8 +108,6 @@ if __name__=="__main__":
         weight_decay=opt.weight_decay,
         nesterov=opt.nesterov)
 
-#     optimizer = torch.optim.Adam(parameters, lr=opt.learning_rate, weight_decay=opt.weight_decay)
-#     print("Adam...")
     if opt.resume_path1 != '':
         optimizer.load_state_dict(torch.load(opt.resume_path1)['optimizer'])
 
@@ -151,8 +126,6 @@ if __name__=="__main__":
         end_time = time.time()
         #pdb.set_trace()
         for i, (inputs, targets,_) in enumerate(train_dataloader):
-#             print(" inputs  : ",inputs)
-#             print(" targets  : ",targets)
 #             print(" inputs  : ",inputs.size())
             data_time.update(time.time() - end_time)
         
