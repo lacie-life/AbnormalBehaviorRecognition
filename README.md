@@ -8,8 +8,8 @@ Abnormal Behavior Recognition
     - [x] Remove background
     - [x] Create label
     - [x] Pose estimation label
-
-- [ ] Chose model
+    - [ ] Create dataloader
+- [ ] Choose models
     - [x] Pose estimation model
     - [ ] Behavior recognition model
 
@@ -17,7 +17,7 @@ Abnormal Behavior Recognition
     - [ ] Behavior recognition model
 
 - [ ] Postprocessing data
-    - [ ] Calculate start and end time of abnormal behavior
+    - [ ] Calculate the start and end time of abnormal behavior
     - [ ] Calculate abnormal zone
 
 - [ ] Test model
