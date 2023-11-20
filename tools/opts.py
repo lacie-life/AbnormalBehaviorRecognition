@@ -5,6 +5,11 @@ def parse_opts():
     parser = argparse.ArgumentParser()
     # Datasets 
     parser.add_argument(
+        '--root_path',
+        default='/home/lacie/Datasets/KISA/ver-1/',
+        type=str,
+        help='Root directory path of data')
+    parser.add_argument(
         '--frame_dir',
         default='dataset/HMDB51/',
         type=str,

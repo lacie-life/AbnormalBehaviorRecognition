@@ -29,12 +29,12 @@ def get_cctv(opt, frame_path, Total_frames):
     return clip_image
 
 
-class CCTV_loader(Dataset):
+class KISADataloader(Dataset):
     def __init__(self, train, opt):
         if train == 1:
-            self.clips = glob.glob('/workspace/data/train/*/*')
+            self.clips = glob.glob(opt.root_path + 'train/*/*')
         else:
-            self.clips = glob.glob('/workspace/data/test/*/*')
+            self.clips = glob.glob(opt.root_path + 'test/*/*')
             self.clips.sort()
         self.opt = opt
         self.train_val_test = train
