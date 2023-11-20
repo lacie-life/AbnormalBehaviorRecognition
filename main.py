@@ -8,7 +8,7 @@ from torch.optim import lr_scheduler
 
 from tools.opts import *
 from tools.utils import *
-from dataset.kisadataloader import KISADataloader
+from dataset.kisadataloader import KISADataLoader
 from models.model import generate_model
 
 import os
@@ -22,7 +22,7 @@ if __name__ == '__main__':
 
     print("Preprocessing train data ...")
     
-    train_data = KISADataloader(train=1, opt=opt)
+    train_data = KISADataLoader(train=1, opt=opt)
     
     print("Length of train data = ", len(train_data))
 
