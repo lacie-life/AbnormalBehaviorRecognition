@@ -9,9 +9,9 @@ sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 
 from tools.pose_estimation import PoseDetector
 
-output_folder_path = "/home/lacie/Datasets/KISA/project/FireDetection/"
-folder_path = "/home/lacie/Datasets/KISA/train/FireDetection"
-label = "FireDetection"
+output_folder_path = "/home/lacie/Datasets/KISA/project/Violence/"
+folder_path = "/home/lacie/Datasets/KISA/train/Violence"
+label = "Violence"
 
 def time2second(time_string):
     time_format = "%H:%M:%S"

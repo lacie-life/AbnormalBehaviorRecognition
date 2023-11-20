@@ -11,7 +11,7 @@ import glob
 #import dircache
 import pdb
 
-label_index = ['abandonment',  'escalator_fall',  'fainting',  'surrounding_fall',  'theft']
+label_index = ['Abandonment',  'Falldown',  'FireDetection',  'Intrusion',  'Intrusion', 'Violence', 'Normal']
 
 def get_cctv(opt, frame_path, Total_frames):
     clip = []
@@ -54,3 +54,6 @@ class CCTV_loader(Dataset):
         Total_frames = len(glob.glob(path+'/*.jpg'))
         clip = get_cctv(self.opt, path, Total_frames)
         return((scale_crop(clip, self.train_val_test, self.opt), label, label_name))
+    
+
+
