@@ -10,25 +10,15 @@ def parse_opts():
         type=str,
         help='Root directory path of data')
     parser.add_argument(
-        '--frame_dir',
-        default='dataset/HMDB51/',
-        type=str,
-        help='path of jpg files')
-    parser.add_argument(
-        '--annotation_path',
-        default='dataset/HMDB51_labels',
-        type=str,
-        help='label paths')
-    parser.add_argument(
         '--dataset',
-        default='CCTV',
+        default='KISA',
         type=str,
-        help='(HMDB51, UCF101, Kinectics)')
+        help='(KISA)')
     parser.add_argument(
         '--split',
         default=1,
         type=str,
-        help='(for HMDB51 and UCF101)')
+        help='(Nothing)')
     parser.add_argument(
         '--modality',
         default='RGB',
@@ -43,7 +33,7 @@ def parse_opts():
         '--n_classes',
         default=400,
         type=int,
-        help='Number of classes (activitynet: 200, kinetics: 400, ucf101: 101, hmdb51: 51)')
+        help='Number of classes')
     parser.add_argument(
         '--n_finetune_classes',
         default=51,
@@ -231,3 +221,4 @@ def parse_opts():
     args = parser.parse_args()
 
     return args
+
