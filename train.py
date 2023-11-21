@@ -1,28 +1,24 @@
-from dataset.kisadataloader import *
-from torch.utils.data import Dataset, DataLoader
-import getpass
-import os
-import socket
-import numpy as np
-from dataset.preprocess_data import *
-from PIL import Image, ImageFilter
-import argparse
 import torch
-from torch import nn
-from torch import optim
-from torch.optim import lr_scheduler
-from models.model import generate_model
-from utils.opts import parse_opts
+import torch.nn as nn
+from torch.utils.data import Dataset, DataLoader
 from torch.autograd import Variable
-import time
-import sys
-from utils.utils import *
-#from utils import AverageMeter, calculate_accuracy
-import pdb
-import json
 import torch.nn.functional as F
 
-if __name__=="__main__":
+import torchvision
+from torch import optim
+from torch.optim import lr_scheduler
+
+from tools.opts import *
+from tools.utils import *
+from dataset.kisadataloader import KISADataLoader
+from models.model import generate_model
+
+import os
+import time
+import pdb
+import json
+
+if __name__ == '__main__':
     opt = parse_opts()
     print(opt)
     
@@ -31,29 +27,21 @@ if __name__=="__main__":
 
     print("Preprocessing train data ...")
     
-    train_data = CCTV_loader(train=1, opt=opt)
+    train_data = KISADataLoader(train = 1, opt = opt)
+    val_data = KISADataLoader(train = 2, opt = opt)
     
     print("Length of train data = ", len(train_data))
-
-    print("Preprocessing validation data ...")
-    
-    val_data = CCTV_loader(train=2, opt=opt)
-    
-    print("Length of validation data = ", len(val_data))
-    
-    if opt.modality=='RGB': opt.input_channels = 3
-    elif opt.modality=='Flow': opt.input_channels = 2
 
     print("Preparing datatloaders ...")
     
     train_dataloader = DataLoader(train_data, batch_size = opt.batch_size, shuffle=True, num_workers = opt.n_workers, pin_memory = True)
 
-    val_dataloader = DataLoader(val_data, batch_size = 1, shuffle=True, num_workers = opt.n_workers, pin_memory = True)
-    
+    val_dataloader = DataLoader(val_data, batch_size = opt.batch_size, shuffle=False, num_workers = opt.n_workers, pin_memory = True)
+
     print("Length of train datatloader = ",len(train_dataloader))
-    print("Length of validation datatloader = ",len(val_dataloader))    
-   
-    # define the model 
+
+    print("Length of val datatloader = ",len(val_dataloader))
+
     print("Loading model... ", opt.model, opt.model_depth)
     model, parameters = generate_model(opt)
     
@@ -67,9 +55,12 @@ if __name__=="__main__":
         opt.begin_epoch = checkpoint['epoch']
         model.load_state_dict(checkpoint['state_dict'])
     
-    log_path = os.path.join(opt.result_path, opt.dataset)
+    log_path = os.path.join(opt.result_path + 'runs/', opt.dataset)
+    checkpoint_path = os.path.join(log_path, 'checkpoints')
+    sub_path = os.path.join(log_path, 'submit')
     if not os.path.exists(log_path):
-        os.makedirs(log_path)
+        os.makedirs(checkpoint_path)
+        os.makedirs(sub_path)
         
     if opt.log == 1:
         if opt.pretrain_path:
@@ -193,11 +184,13 @@ if __name__=="__main__":
         accuracies = AverageMeter()
 
         end_time = time.time()
-        submit_file = './submit/submit'+str(epoch)+'.json'
+        submit_file = sub_path + '/submit'+str(epoch)+'.json'
+        f = open(submit_file, 'x')
+        f.close()
         result = dict()
         with torch.no_grad():
             for i, (inputs, targets, label_name) in enumerate(val_dataloader):
-#                 print(" label_name  : ",label_name)
+                # print(" label_name  : ",label_name)
                 
                 # pdb.set_trace()
                 data_time.update(time.time() - end_time)
@@ -208,7 +201,8 @@ if __name__=="__main__":
                 
                 outputs2 = F.softmax(outputs, dim=1).cpu()
                 _, label2 = torch.topk(outputs2, k=1)
-                result[label_name[0]] = label2.squeeze().item()
+                # print(" label2  : ",str(label_name[0]), label2.squeeze().item())
+                # result[label_name[0]] = label2.squeeze().item()
                 
                 
                 loss = criterion(outputs, targets)
@@ -232,13 +226,11 @@ if __name__=="__main__":
                         data_time=data_time,
                         loss=losses,
                         acc=accuracies))
-                      
+        
         with open(submit_file, "w") as json_file:
             json.dump(result, json_file)
         if opt.log == 1:
             val_logger.log({'epoch': epoch, 'loss': losses.avg, 'acc': accuracies.avg})
         scheduler.step(losses.avg)
-        
-
 
 

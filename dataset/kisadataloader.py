@@ -34,7 +34,7 @@ class KISADataLoader(Dataset):
         if train == 1:
             self.clips = glob.glob(opt.root_path + 'train/*/*')
         else:
-            self.clips = glob.glob(opt.root_path + 'test/*/*')
+            self.clips = glob.glob(opt.root_path + 'val/*/*')
             self.clips.sort()
         self.opt = opt
         self.train_val_test = train
@@ -52,7 +52,7 @@ class KISADataLoader(Dataset):
             
         label = label_index.index(label)
         Total_frames = len(glob.glob(path+'/*.jpg'))
-        print(path)
+        # print(path)
         clip = get_cctv(self.opt, path, Total_frames)
         return((scale_crop(clip, self.train_val_test, self.opt), label, label_name))
     
