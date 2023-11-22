@@ -13,7 +13,7 @@ class PoseDetector:
         self.smooth = smooth
         self.detectionCon = detectionCon
         self.trackCon = trackCon
-        self.detector = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)
+        self.detector = torch.hub.load('ultralytics/yolov5', 'yolov5x6', pretrained=True)
 
         self.mpDraw = mp.solutions.drawing_utils
         self.mpPose = mp.solutions.pose
@@ -61,6 +61,12 @@ class PoseDetector:
                 self.poses.append(tmp_pose)
         
         img = cv2.cvtColor(imgRGB, cv2.COLOR_RGB2BGR)
+
+        if draw:
+            for obj in humanObjects:
+                bbox = [int(obj[0]), int(obj[1]), int(obj[2]), int(obj[3])]
+                cv2.rectangle(img, (bbox[0], bbox[1]), (bbox[2], bbox[3]), (0, 255, 0), 2)
+
         return img, self.poses, self.boxes
 
     def getPosition(self, img, draw=True):
@@ -79,14 +85,25 @@ class PoseDetector:
         return lmList
 
 def main():
-    cap = cv2.VideoCapture('/home/lacie/Datasets/KISA/train/Abandonment/C002200_002.mp4')
+    cap = cv2.VideoCapture('/home/lacie/Datasets/KISA/train/Loitering/C001201_004.mp4')
+
+    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH) + 0.5)
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT) + 0.5)
+    size = (width, height)
+    fourcc = cv2.VideoWriter_fourcc(*'XVID')
+    out = cv2.VideoWriter('output-6.avi', fourcc, 20.0, size)
+
     pTime = 0
     
     detector = PoseDetector()
     
     while True:
         success, img = cap.read()
-        img, poses = detector.findPose(img)
+
+        if not success:
+            break
+
+        img, poses, boxes = detector.findPose(img)
         print(poses)
 
         cTime = time.time()
@@ -95,8 +112,11 @@ def main():
 
         cv2.putText(img, str(int(fps)), (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 3)
         cv2.imshow("Image", img)
+        out.write(img)
         cv2.waitKey(1)
 
+    cap.release()
+    out.release()
 
 if __name__ == "__main__":
     main()
