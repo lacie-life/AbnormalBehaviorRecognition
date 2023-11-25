@@ -65,7 +65,6 @@ def split_video(video_path, output_folder_path, name, xml_path, label):
         output_video = cv2.VideoWriter(output_folder_path + f'{type_str}/' + "/" + name + f'segment_{segment_count}.mp4',
                                        cv2.VideoWriter_fourcc(*'mp4v'), fps, (1280, 720))
 
-
         while start_frame < end_frame and start_frame < total_frames:
             ret, frame = video_capture.read()
             if not ret:

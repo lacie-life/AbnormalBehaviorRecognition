@@ -8,10 +8,10 @@ Abnormal Behavior Recognition
     - [x] Remove background
     - [x] Create label
     - [x] Pose estimation label
-    - [ ] Create dataloader
-- [ ] Choose models
+    - [x] Create dataloader
+- [x] Choose models
     - [x] Pose estimation model
-    - [ ] Behavior recognition model
+    - [x] Behavior recognition model
 
 - [ ] Train model
     - [ ] Behavior recognition model
