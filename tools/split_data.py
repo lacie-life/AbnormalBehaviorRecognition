@@ -2,18 +2,18 @@ import os
 import random
 import shutil
 
-root_folder = '/home/lacie/Datasets/KISA/train'
+root_folder = '/home/lacie/Dataset/KISA/ver-3/origin/'
 
 event_folders = [
     'Abandonment', 'Falldown', 'FireDetection', 'Intrusion',
-    'Loitering', 'PeopleCounting', 'Queueing', 'Violence'
+    'Loitering', 'Violence', 'Normal'
 ]
 
 # Define the ratio for splitting (80% train and 20% validation)
 train_ratio = 0.8
 
-train_folder = '/home/lacie/Datasets/KISA/ver-2/train'
-val_folder = '/home/lacie/Datasets/KISA/ver-2/val'
+train_folder = '/home/lacie/ver-3/train'
+val_folder = '/home/lacie/ver-3/val'
 
 if not os.path.exists(train_folder):
     os.makedirs(train_folder, exist_ok=True)

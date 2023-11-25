@@ -24,8 +24,9 @@ def time2second(time_string):
 
 
 class simpleKISADataLoader(Dataset):
-    def __init__(self, root_folder, transform=None):
+    def __init__(self, root_folder, sample=10, transform=None):
         self.root_folder = root_folder
+        self.sample = sample
 
         self.event_folders = [folder for folder in os.listdir(root_folder) if
                               os.path.isdir(os.path.join(root_folder, folder))]
@@ -96,7 +97,7 @@ class simpleKISADataLoader(Dataset):
             ret, frame = video_capture.read()
             if not ret:
                 break
-            if frame_count % 10 == 0:
+            if frame_count % self.sample == 0:
                 frames.append(frame)
             frame_count += 1
         return frames

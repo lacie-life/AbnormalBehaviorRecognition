@@ -40,14 +40,14 @@ criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
 # Define dataset path
-train_path = '/home/lacie/Datasets/KISA/ver-2/train'
-val_path = '/home/lacie/Datasets/KISA/ver-2/val'
+train_path = '/home/lacie/Dataset/KISA/ver-3/ver-3/train'
+val_path = '/home/lacie/Dataset/KISA/ver-3/ver-3/val'
 
 # Initialize dataset path
-train_dataset = simpleKISADataLoader(train_path, transform=None)
+train_dataset = simpleKISADataLoader(train_path, sample=1, transform=None)
 train_data_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
 
-val_dataset = simpleKISADataLoader(val_path, transform=None)
+val_dataset = simpleKISADataLoader(val_path, sample=1, transform=None)
 val_data_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
 
 best_metrics = 0.0
