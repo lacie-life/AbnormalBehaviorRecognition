@@ -4,6 +4,7 @@ import xml.etree.ElementTree as ET
 from datetime import datetime
 import cv2
 import os
+import numpy as np
 from tools.pose_estimation import PoseDetector
 
 
@@ -43,24 +44,34 @@ class simpleKISADataLoader(Dataset):
 
         video_frames = self.load_video_frames(video_path)
 
-        human_objects = self.extract_human_information(video_frames)
+        bboxes, poses = self.extract_human_information(video_frames)
 
         event_label, start_time, duration = self.parse_xml(xml_path)
 
         if self.transform:
             video_frames = [self.transform(frame) for frame in video_frames]
 
-        return {
-            'frames': video_frames,
-            'human_objects': human_objects,
-            'label': event_label,
-            'start_time': start_time,
-            'duration': duration
-        }
+        print("Number frames: " + str(len(video_frames)))
+        print("Number human objects: " + str(len(bboxes)))
+        print("Number human poses: " + str(len(poses)))
+        print(event_label)
+        print(start_time)
+        print(duration)
+
+        return [
+            video_frames,
+            bboxes,
+            poses,
+            event_label,
+            start_time,
+            duration
+        ]
 
     def parse_xml(self, xml_path):
         tree = ET.parse(xml_path)
         root = tree.getroot()
+
+        print(xml_path)
 
         # Extract label information from XML
         event_label = root.find('.//AlarmDescription').text
@@ -83,15 +94,34 @@ class simpleKISADataLoader(Dataset):
         return frames
 
     def extract_human_information(self, frames):
-        humanObjects = []
-        i = 0
+        bboxes = []
+        poses = []
         for frame in frames:
-            _, humanObject = self.pose_detector.findPose(frame)
+            _, bbox, pose = self.pose_detector.findPose(frame)
+            bboxes.append(bbox)
+            poses.append(pose)
 
-            humanObjects.append(humanObject)
-            i += 1
+        return bboxes, poses
 
-        return humanObjects
+
+def collate_fn(rets):
+    frames = [ret[0] for ret in rets]
+    bboxes = [ret[1] for ret in rets]
+    poses = [ret[2] for ret in rets]
+    event = [ret[3] for ret in rets]
+    start_time = [ret[4] for ret in rets]
+    duration = [ret[5] for ret in rets]
+
+    res = (
+        torch.tensor(frames),
+        torch.tensor(bboxes),
+        torch.tensor(poses),
+        torch.tensor(event),
+        torch.tensor(start_time),
+        torch.tensor(duration)
+    )
+
+    return res
 
 
 if __name__ == "__main__":
@@ -99,7 +129,6 @@ if __name__ == "__main__":
     print(len(dataset))
 
     for i in range(len(dataset)):
-
         data = dataset[i]
 
         print("Number frames: " + str(len(data['frames'])))
@@ -107,6 +136,3 @@ if __name__ == "__main__":
         print(data['label'])
         print(data['start_time'])
         print(data['duration'])
-
-
-

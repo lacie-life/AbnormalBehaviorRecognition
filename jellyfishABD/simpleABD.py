@@ -37,12 +37,6 @@ class simpleABD(nn.Module):
         x = self.maxpool3d(x)
         x = x.view(x.size(0), -1)
 
-        if bounding_boxes.size() == 0:
-            bounding_boxes = torch.zeros((1, 4, 4, 4))
-
-        if poses.size() == 0:
-            poses = torch.zeros((1, 34))
-
         bbox_features = self.relu(self.conv2d_bbox(bounding_boxes))
         bbox_features = self.maxpool2d(bbox_features)
         bbox_features = bbox_features.view(bbox_features.size(0), -1)
@@ -65,7 +59,7 @@ class simpleABD(nn.Module):
 
 
 # TODO: Testing now
-def KISALoss(event_predictions, timestamps, true_event_type, true_start_time, true_duration):
+def KISAEvaluationMetric(event_predictions, timestamps, true_event_type, true_start_time, true_duration):
     event_loss = nn.CrossEntropyLoss()(event_predictions, true_event_type)
     timestamp_loss = nn.MSELoss()(timestamps, torch.cat((true_start_time, true_duration), dim=1))
 

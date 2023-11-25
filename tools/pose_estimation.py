@@ -6,7 +6,7 @@ import torch
 
 class PoseDetector:
 
-    def __init__(self, mode = False, upBody = False, smooth=True, detectionCon = 0.5, trackCon = 0.5):
+    def __init__(self, mode=False, upBody=False, smooth=True, detectionCon=0.5, trackCon=0.5):
 
         self.boxes = None
         self.poses = None
@@ -19,15 +19,15 @@ class PoseDetector:
 
         self.mpDraw = mp.solutions.drawing_utils
         self.mpPose = mp.solutions.pose
-        self.pose = self.mpPose.Pose(static_image_mode=self.mode, 
-                                     model_complexity=self.upBody, 
-                                     smooth_landmarks=self.smooth, 
-                                     min_detection_confidence=self.detectionCon, 
+        self.pose = self.mpPose.Pose(static_image_mode=self.mode,
+                                     model_complexity=self.upBody,
+                                     smooth_landmarks=self.smooth,
+                                     min_detection_confidence=self.detectionCon,
                                      min_tracking_confidence=self.trackCon)
 
     def findPose(self, img, draw=True):
         imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        
+
         objects = self.detector(imgRGB).xyxy[0]
 
         humanObjects = []
@@ -39,16 +39,12 @@ class PoseDetector:
         self.poses = []
         self.boxes = []
 
-        res = {}
-
         for obj in humanObjects:
             bbox = [int(obj[0]), int(obj[1]), int(obj[2]), int(obj[3])]
             cropped_img = imgRGB[bbox[1]:bbox[3], bbox[0]:bbox[2]]
-            
+
             pose = self.pose.process(cropped_img)
             self.boxes.append(bbox)
-
-            res['bbox'] = bbox
 
             if pose.pose_landmarks:
                 tmp_pose = []
@@ -60,11 +56,10 @@ class PoseDetector:
                     if draw:
                         cv2.circle(cropped_img, (cx, cy), 5, (255, 0, 0), cv2.FILLED)
                         imgRGB[bbox[1]:bbox[3], bbox[0]:bbox[2]] = cropped_img
-                
+
                 self.poses.append(tmp_pose)
-                res['pose'] = tmp_pose
             else:
-                res['pose'] = None
+                self.poses.append(torch.zeros((1, 34)))
 
         img = cv2.cvtColor(imgRGB, cv2.COLOR_RGB2BGR)
 
@@ -73,10 +68,10 @@ class PoseDetector:
                 bbox = [int(obj[0]), int(obj[1]), int(obj[2]), int(obj[3])]
                 cv2.rectangle(img, (bbox[0], bbox[1]), (bbox[2], bbox[3]), (0, 255, 0), 2)
 
-        return img, res
+        return img, self.poses, self.boxes
 
     def getPosition(self, img, draw=True):
-        lmList= []
+        lmList = []
         for pose in self.poses:
             tmp = []
             if pose.pose_landmarks:
@@ -89,6 +84,7 @@ class PoseDetector:
                 lmList.append(tmp)
         return lmList
 
+
 def main():
     cap = cv2.VideoCapture('/home/lacie/Datasets/KISA/train/Loitering/C001201_004.mp4')
 
@@ -99,9 +95,9 @@ def main():
     out = cv2.VideoWriter('output-6.avi', fourcc, 20.0, size)
 
     pTime = 0
-    
+
     detector = PoseDetector()
-    
+
     while True:
         success, img = cap.read()
 
@@ -123,6 +119,6 @@ def main():
     cap.release()
     out.release()
 
+
 if __name__ == "__main__":
     main()
-
