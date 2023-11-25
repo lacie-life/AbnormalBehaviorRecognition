@@ -1,75 +1,112 @@
 import torch
 from torch.utils.data import Dataset
 import xml.etree.ElementTree as ET
+from datetime import datetime
 import cv2
+import os
 from tools.pose_estimation import PoseDetector
 
 
+def time2second(time_string):
+    time_format = "%H:%M:%S"
+    time_object = datetime.strptime(time_string, time_format)
+    seconds = time_object.hour * 3600 + time_object.minute * 60 + time_object.second
+    return seconds
+
+
 class simpleKISADataLoader(Dataset):
-    def __init__(self, xml_file, video_folder, transform=None):
-        self.xml_file = xml_file
-        self.video_folder = video_folder
+    def __init__(self, root_folder, transform=None):
+        self.root_folder = root_folder
+
+        self.event_folders = [folder for folder in os.listdir(root_folder) if
+                              os.path.isdir(os.path.join(root_folder, folder))]
+        self.file_list = []
+
+        for event_folder in self.event_folders:
+            event_path = os.path.join(root_folder, event_folder)
+            videos = [file for file in os.listdir(event_path) if file.endswith('.mp4')]
+            for video in videos:
+                video_path = os.path.join(event_path, video)
+                xml_file = video.replace('.mp4', '.xml')
+                xml_path = os.path.join(event_path, xml_file)
+                if os.path.exists(xml_path):
+                    self.file_list.append((video_path, xml_path))
+
         self.transform = transform
-        self.clips = self.parse_xml()
         self.pose_detector = PoseDetector()
 
     def __len__(self):
-        return len(self.clips)
+        return len(self.file_list)
 
     def __getitem__(self, idx):
-        video_info = self.clips[idx]
-        video_path = f"{self.video_folder}/{video_info['filename']}"
+        video_path, xml_path = self.file_list[idx]
 
         video_frames = self.load_video_frames(video_path)
 
-        poses, bounding_boxes = self.extract_human_information(video_frames)
+        human_objects = self.extract_human_information(video_frames)
 
-        event_label = video_info['event']
-        start_time = video_info['start_time']
-        duration = video_info['duration']
+        event_label, start_time, duration = self.parse_xml(xml_path)
 
         if self.transform:
             video_frames = [self.transform(frame) for frame in video_frames]
 
         return {
             'frames': video_frames,
-            'bounding_boxes': bounding_boxes,
-            'poses': poses,
+            'human_objects': human_objects,
             'label': event_label,
             'start_time': start_time,
             'duration': duration
         }
 
-    def parse_xml(self):
-        tree = ET.parse(self.xml_file)
+    def parse_xml(self, xml_path):
+        tree = ET.parse(xml_path)
         root = tree.getroot()
 
-        clips = []
-        for clip in root.iter('Clip'):
-            filename = clip.find('Header/Filename').text
-            event = clip.find('Alarms/Alarm/AlarmDescription').text
-            start_time = clip.find('Alarms/Alarm/StartTime').text
-            duration = clip.find('Alarms/Alarm/AlarmDuration').text
+        # Extract label information from XML
+        event_label = root.find('.//AlarmDescription').text
+        start_time = root.find(".//StartTime").text
+        duration = root.find(".//AlarmDuration").text
 
-            clips.append({
-                'filename': filename,
-                'event': event,
-                'start_time': start_time,
-                'duration': duration
-            })
-
-        return clips
+        return event_label, time2second(start_time), time2second(duration)
 
     def load_video_frames(self, video_path):
         video_capture = cv2.VideoCapture(video_path)
         frames = []
+        frame_count = 0
         while True:
             ret, frame = video_capture.read()
             if not ret:
                 break
-            frames.append(frame)
+            if frame_count % 10 == 0:
+                frames.append(frame)
+            frame_count += 1
         return frames
 
     def extract_human_information(self, frames):
-        _, poses, bounding_boxes = self.pose_detector.findPose(frames)
-        return poses, bounding_boxes
+        humanObjects = []
+        i = 0
+        for frame in frames:
+            _, humanObject = self.pose_detector.findPose(frame)
+
+            humanObjects.append(humanObject)
+            i += 1
+
+        return humanObjects
+
+
+if __name__ == "__main__":
+    dataset = simpleKISADataLoader('/home/lacie/Datasets/KISA/ver-2/train/')
+    print(len(dataset))
+
+    for i in range(len(dataset)):
+
+        data = dataset[i]
+
+        print("Number frames: " + str(len(data['frames'])))
+        print("Number human objects: " + str(len(data['human_objects'])))
+        print(data['label'])
+        print(data['start_time'])
+        print(data['duration'])
+
+
+

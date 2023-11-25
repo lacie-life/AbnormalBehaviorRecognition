@@ -8,6 +8,8 @@ class PoseDetector:
 
     def __init__(self, mode = False, upBody = False, smooth=True, detectionCon = 0.5, trackCon = 0.5):
 
+        self.boxes = None
+        self.poses = None
         self.mode = mode
         self.upBody = upBody
         self.smooth = smooth
@@ -37,7 +39,7 @@ class PoseDetector:
         self.poses = []
         self.boxes = []
 
-        print(humanObjects)
+        res = {}
 
         for obj in humanObjects:
             bbox = [int(obj[0]), int(obj[1]), int(obj[2]), int(obj[3])]
@@ -46,11 +48,12 @@ class PoseDetector:
             pose = self.pose.process(cropped_img)
             self.boxes.append(bbox)
 
+            res['bbox'] = bbox
+
             if pose.pose_landmarks:
                 tmp_pose = []
                 for id, lm in enumerate(pose.pose_landmarks.landmark):
                     h, w, c = cropped_img.shape
-                    #print(id, lm)
                     _cx, _cy = int(lm.x * w + int(obj[0])), int(lm.y * h + int(obj[1]))
                     cx, cy = int(lm.x * w), int(lm.y * h)
                     tmp_pose.append([id, _cx, _cy])
@@ -59,7 +62,10 @@ class PoseDetector:
                         imgRGB[bbox[1]:bbox[3], bbox[0]:bbox[2]] = cropped_img
                 
                 self.poses.append(tmp_pose)
-        
+                res['pose'] = tmp_pose
+            else:
+                res['pose'] = None
+
         img = cv2.cvtColor(imgRGB, cv2.COLOR_RGB2BGR)
 
         if draw:
@@ -67,7 +73,7 @@ class PoseDetector:
                 bbox = [int(obj[0]), int(obj[1]), int(obj[2]), int(obj[3])]
                 cv2.rectangle(img, (bbox[0], bbox[1]), (bbox[2], bbox[3]), (0, 255, 0), 2)
 
-        return img, self.poses, self.boxes
+        return img, res
 
     def getPosition(self, img, draw=True):
         lmList= []
@@ -76,7 +82,6 @@ class PoseDetector:
             if pose.pose_landmarks:
                 for id, lm in enumerate(pose.pose_landmarks.landmark):
                     h, w, c = img.shape
-                    #print(id, lm)
                     cx, cy = int(lm.x * w), int(lm.y * h)
                     tmp.append([id, cx, cy])
                     if draw:
