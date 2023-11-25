@@ -6,6 +6,14 @@ from jellyfishABD.simpleABD import simpleABD, KISAEvaluationMetric
 from dataset.simpleKISADataLoader import simpleKISADataLoader, collate_fn
 import torchsummary as summary
 
+event_list = {'Abandonment': 0,
+              'Falldown': 1,
+              'FireDetection': 2,
+              'Intrusion': 3,
+              'Loitering': 4,
+              'Violence': 5,
+              'Normal': 6}
+
 
 # Define hyperparameters
 num_epochs = 10

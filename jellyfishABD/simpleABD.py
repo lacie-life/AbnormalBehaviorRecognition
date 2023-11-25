@@ -27,6 +27,9 @@ class simpleABD(nn.Module):
         self.dropout = nn.Dropout(0.5)
 
     def forward(self, frames, bounding_boxes, poses):
+
+        frames = frames.permute(0, 4, 1, 2, 3)
+
         x = self.relu(self.conv3d_1(frames))
         x = self.maxpool3d(x)
         x = self.relu(self.conv3d_2(x))

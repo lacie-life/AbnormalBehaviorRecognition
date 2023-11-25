@@ -7,6 +7,14 @@ import os
 import numpy as np
 from tools.pose_estimation import PoseDetector
 
+event_list = {'Abandonment': 0,
+              'Falldown': 1,
+              'FireDetection': 2,
+              'Intrusion': 3,
+              'Loitering': 4,
+              'Violence': 5,
+              'Normal': 6}
+
 
 def time2second(time_string):
     time_format = "%H:%M:%S"
@@ -78,7 +86,7 @@ class simpleKISADataLoader(Dataset):
         start_time = root.find(".//StartTime").text
         duration = root.find(".//AlarmDuration").text
 
-        return event_label, time2second(start_time), time2second(duration)
+        return event_list[event_label], time2second(start_time), time2second(duration)
 
     def load_video_frames(self, video_path):
         video_capture = cv2.VideoCapture(video_path)
