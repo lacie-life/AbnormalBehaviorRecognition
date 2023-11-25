@@ -3,6 +3,7 @@ import xml.etree.ElementTree as ET
 from datetime import datetime
 import numpy as np
 import os
+from tqdm import tqdm
 
 
 def time2second(time_string):
@@ -17,9 +18,15 @@ def createLabel(xml_path, file_name, label, output_folder_path, indx):
     tree = ET.parse(xml_path)
     root = tree.getroot()
 
+
+
     # Change the value of the Scenario tag
     for scenario in root.iter('Scenario'):
         scenario.text = label  # Change this to the new value
+
+    for old_name in root.iter('Filename'):
+        new_name = file_name + 'segment_' + str(indx) + '.mp4'
+        old_name.text = str(new_name)  # Change this to the new value
 
     # Save the modified content to a new XML file
     tree.write(output_folder_path + f'{label}/' + "/" + file_name + f'segment_{indx}.xml' , encoding='utf-8', xml_declaration=True)
@@ -56,10 +63,10 @@ def split_video(video_path, output_folder_path, name, xml_path, label):
         type_str = None
 
         if start_frame > start_event_frame and start_frame < end_event_frame:
-            print("Event")
+            # print("Event")
             type_str = label
         else:
-            print("Normal")
+            # print("Normal")
             type_str = "Normal"
 
         output_video = cv2.VideoWriter(output_folder_path + f'{type_str}/' + "/" + name + f'segment_{segment_count}.mp4',
@@ -83,9 +90,9 @@ def split_video(video_path, output_folder_path, name, xml_path, label):
 
 
 if __name__ == "__main__":
-    input_folder_path = '/home/lacie/Datasets/KISA/train/Abandonment/'
-    output_folder_path = '/home/lacie/Datasets/KISA/ver-3/Abandonment/'
-    label = 'Abandonment'
+    input_folder_path = '/home/lacie/Dataset/KISA/train/Falldown/'
+    output_folder_path = '/home/lacie/Dataset/KISA/ver-3/Falldown/'
+    label = 'Falldown'
 
     videos = [file for file in os.listdir(input_folder_path) if file.endswith('.mp4')]
     xml_files = [file for file in os.listdir(input_folder_path) if file.endswith('.xml')]
@@ -93,7 +100,67 @@ if __name__ == "__main__":
     videos.sort()
     xml_files.sort()
 
-    for i in range(len(videos)):
+    for i in tqdm(range(len(videos))):
+        video_path = os.path.join(input_folder_path, videos[i])
+        xml_path = os.path.join(input_folder_path, xml_files[i])
+        split_video(video_path, output_folder_path, videos[i][:-4], xml_path, label)
+
+    input_folder_path = '/home/lacie/Dataset/KISA/train/FireDetection/'
+    output_folder_path = '/home/lacie/Dataset/KISA/ver-3/FireDetection/'
+    label = 'FireDetection'
+
+    videos = [file for file in os.listdir(input_folder_path) if file.endswith('.mp4')]
+    xml_files = [file for file in os.listdir(input_folder_path) if file.endswith('.xml')]
+
+    videos.sort()
+    xml_files.sort()
+
+    for i in tqdm(range(len(videos))):
+        video_path = os.path.join(input_folder_path, videos[i])
+        xml_path = os.path.join(input_folder_path, xml_files[i])
+        split_video(video_path, output_folder_path, videos[i][:-4], xml_path, label)
+
+    input_folder_path = '/home/lacie/Dataset/KISA/train/Violence/'
+    output_folder_path = '/home/lacie/Dataset/KISA/ver-3/Violence/'
+    label = 'Violence'
+
+    videos = [file for file in os.listdir(input_folder_path) if file.endswith('.mp4')]
+    xml_files = [file for file in os.listdir(input_folder_path) if file.endswith('.xml')]
+
+    videos.sort()
+    xml_files.sort()
+
+    for i in tqdm(range(len(videos))):
+        video_path = os.path.join(input_folder_path, videos[i])
+        xml_path = os.path.join(input_folder_path, xml_files[i])
+        split_video(video_path, output_folder_path, videos[i][:-4], xml_path, label)
+
+    input_folder_path = '/home/lacie/Dataset/KISA/train/Intrusion/'
+    output_folder_path = '/home/lacie/Dataset/KISA/ver-3/Intrusion/'
+    label = 'Intrusion'
+
+    videos = [file for file in os.listdir(input_folder_path) if file.endswith('.mp4')]
+    xml_files = [file for file in os.listdir(input_folder_path) if file.endswith('.xml')]
+
+    videos.sort()
+    xml_files.sort()
+
+    for i in tqdm(range(len(videos))):
+        video_path = os.path.join(input_folder_path, videos[i])
+        xml_path = os.path.join(input_folder_path, xml_files[i])
+        split_video(video_path, output_folder_path, videos[i][:-4], xml_path, label)
+
+    input_folder_path = '/home/lacie/Dataset/KISA/train/Loitering/'
+    output_folder_path = '/home/lacie/Dataset/KISA/ver-3/Loitering/'
+    label = 'Loitering'
+
+    videos = [file for file in os.listdir(input_folder_path) if file.endswith('.mp4')]
+    xml_files = [file for file in os.listdir(input_folder_path) if file.endswith('.xml')]
+
+    videos.sort()
+    xml_files.sort()
+
+    for i in tqdm(range(len(videos))):
         video_path = os.path.join(input_folder_path, videos[i])
         xml_path = os.path.join(input_folder_path, xml_files[i])
         split_video(video_path, output_folder_path, videos[i][:-4], xml_path, label)

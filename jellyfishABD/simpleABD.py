@@ -58,7 +58,8 @@ class simpleABD(nn.Module):
         selected_event_prediction = event_predictions[0][max_prob_index]
         selected_timestamps = timestamps[0][max_prob_index]
 
-        return selected_event_prediction, selected_timestamps
+        # return selected_event_prediction, selected_timestamps
+        return selected_event_prediction
 
 
 # TODO: Testing now

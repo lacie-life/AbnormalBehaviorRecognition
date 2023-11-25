@@ -84,6 +84,15 @@ class PoseDetector:
                 lmList.append(tmp)
         return lmList
 
+    def findPoseMultiFrame(self, imgs):
+        bboxes = []
+        poses = []
+        for img in imgs:
+            _, bbox, pose = self.findPose(self, img)
+            bboxes.append(bbox)
+            poses.append(pose)
+        return bboxes, poses
+
 
 def main():
     cap = cv2.VideoCapture('/home/lacie/Datasets/KISA/train/Loitering/C001201_004.mp4')

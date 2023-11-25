@@ -2,4 +2,5 @@ lxml
 ultralytics
 mediapipe
 opencv-python
+torchsummary
 

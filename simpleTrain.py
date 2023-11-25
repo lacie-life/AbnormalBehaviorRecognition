@@ -5,6 +5,7 @@ import torch.nn as nn
 from jellyfishABD.simpleABD import simpleABD, KISAEvaluationMetric
 from dataset.simpleKISADataLoader import simpleKISADataLoader, collate_fn
 import torchsummary as summary
+from tqdm import tqdm
 
 event_list = {'Abandonment': 0,
               'Falldown': 1,
@@ -61,7 +62,7 @@ for epoch in range(num_epochs):
     val_total_metrics = 0.0
     val_total_batches = 0
 
-    for i, (video_frames, bboxes, poses, event_label, start_time, duration) in enumerate(train_data_loader):
+    for i, (video_frames, bboxes, poses, event_label, start_time, duration) in tqdm(enumerate(train_data_loader)):
         inputs = video_frames.cuda()
         labels = event_label.cuda()
         bboxes = bboxes.cuda()
@@ -106,7 +107,7 @@ for epoch in range(num_epochs):
 
     # Validation loop
     with torch.no_grad():
-        for i, (video_frames, bboxes, poses,  event_label, start_time, duration) in enumerate(val_data_loader):
+        for i, (video_frames, bboxes, poses,  event_label, start_time, duration) in tqdm(enumerate(val_data_loader)):
             val_inputs, val_labels = video_frames.cuda(), event_label.cuda()
             val_bboxes, val_poses = bboxes.cuda(), poses.cuda()
             val_true_start_time, val_true_event_type = start_time.cuda(), event_label.cuda()
