@@ -8,10 +8,10 @@ Abnormal Behavior Recognition
     - [x] Remove background
     - [x] Create label
     - [x] Pose estimation label
-    - [x] Create dataloader
-- [x] Choose models
-    - [x] Pose estimation model
-    - [x] Behavior recognition model
+    - [x] Create data loader
+- [ ] Choose models
+    - [x] Pose estimation model (Mediapipe 33 keypoint)
+    - [ ] Behavior recognition model => Fusion strategy????
 
 - [ ] Train model
     - [ ] Behavior recognition model
