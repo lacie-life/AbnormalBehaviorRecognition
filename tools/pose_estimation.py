@@ -36,15 +36,23 @@ class PoseDetector:
             if obj[5] == 0:
                 humanObjects.append(obj)
 
-        self.poses = []
-        self.boxes = []
+        self.poses = torch.zeros((3, 33))
+        self.boxes = torch.zeros((1, 4))
+
+        tmpBB = []
+        tmpPose = []
+
+        if len(humanObjects) == 0:
+            self.poses = torch.zeros((3, 33))
+            self.boxes = torch.zeros((1, 4))
+            return img, self.poses, self.boxes
 
         for obj in humanObjects:
             bbox = [int(obj[0]), int(obj[1]), int(obj[2]), int(obj[3])]
             cropped_img = imgRGB[bbox[1]:bbox[3], bbox[0]:bbox[2]]
 
             pose = self.pose.process(cropped_img)
-            self.boxes.append(bbox)
+            tmpBB.append(torch.tensor(bbox, dtype=torch.float32))
 
             if pose.pose_landmarks:
                 tmp_pose = []
@@ -56,10 +64,9 @@ class PoseDetector:
                     if draw:
                         cv2.circle(cropped_img, (cx, cy), 5, (255, 0, 0), cv2.FILLED)
                         imgRGB[bbox[1]:bbox[3], bbox[0]:bbox[2]] = cropped_img
-
-                self.poses.append(tmp_pose)
+                tmpPose.append(torch.tensor(tmp_pose, dtype=torch.float32).transpose(0, 1))
             else:
-                self.poses.append(torch.zeros((1, 34)))
+                tmpPose.append(torch.zeros((3, 33)))
 
         img = cv2.cvtColor(imgRGB, cv2.COLOR_RGB2BGR)
 
@@ -67,6 +74,9 @@ class PoseDetector:
             for obj in humanObjects:
                 bbox = [int(obj[0]), int(obj[1]), int(obj[2]), int(obj[3])]
                 cv2.rectangle(img, (bbox[0], bbox[1]), (bbox[2], bbox[3]), (0, 255, 0), 2)
+
+        self.poses = torch.mean(torch.stack(tmpPose), dim=0)
+        self.boxes = torch.mean(torch.stack(tmpBB), dim=0)
 
         return img, self.poses, self.boxes
 

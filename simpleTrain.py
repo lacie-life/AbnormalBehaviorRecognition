@@ -25,7 +25,7 @@ batch_size = 1
 num_frames = 60
 frame_channels = 3
 num_classes = 7
-num_joints = 17
+num_joints = 33
 
 # Initialize the model
 model = simpleABD(num_frames, frame_channels, num_classes, num_joints)
@@ -40,17 +40,19 @@ criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
 # Define dataset path
-train_path = '/home/lacie/Dataset/KISA/ver-3/ver-3/train'
-val_path = '/home/lacie/Dataset/KISA/ver-3/ver-3/val'
+train_path = '/home/lacie/Datasets/KISA/ver-3/train'
+val_path = '/home/lacie/Datasets/KISA/ver-3/val'
 
 # Initialize dataset path
-train_dataset = simpleKISADataLoader(train_path, sample=1, transform=None)
+train_dataset = simpleKISADataLoader(train_path, sample=10, transform=None)
 train_data_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
 
-val_dataset = simpleKISADataLoader(val_path, sample=1, transform=None)
+val_dataset = simpleKISADataLoader(val_path, sample=10, transform=None)
 val_data_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
 
 best_metrics = 0.0
+
+print("Data train: " + str(len(train_data_loader)))
 
 # Training loop
 for epoch in range(num_epochs):
@@ -63,10 +65,10 @@ for epoch in range(num_epochs):
     val_total_batches = 0
 
     for i, (video_frames, bboxes, poses, event_label, start_time, duration) in tqdm(enumerate(train_data_loader)):
-        inputs = video_frames.cuda()
-        labels = event_label.cuda()
-        bboxes = bboxes.cuda()
-        poses = poses.cuda()
+        inputs = video_frames.float().cuda()
+        labels = event_label.float().cuda()
+        bboxes = bboxes.float().cuda()
+        poses = poses.float().cuda()
         true_start_time, true_event_type = start_time.cuda(), event_label.cuda()
         true_duration = duration.cuda()
 
@@ -95,8 +97,10 @@ for epoch in range(num_epochs):
         pred_start_time = timestamps[:, 0]
         pred_duration = timestamps[:, 1]
 
-        metrics = KISAEvaluationMetric(pred_event_type, timestamps,
-                                        true_event_type, true_start_time, true_duration)
+        # metrics = KISAEvaluationMetric(pred_event_type, timestamps,
+        #                                 true_event_type, true_start_time, true_duration)
+
+        metrics = loss.item()
 
         train_total_metrics += metrics
         train_total_batches += 1
@@ -106,27 +110,28 @@ for epoch in range(num_epochs):
     print("Training Metrics:", train_average_metrics)
 
     # Validation loop
-    with torch.no_grad():
-        for i, (video_frames, bboxes, poses,  event_label, start_time, duration) in tqdm(enumerate(val_data_loader)):
-            val_inputs, val_labels = video_frames.cuda(), event_label.cuda()
-            val_bboxes, val_poses = bboxes.cuda(), poses.cuda()
-            val_true_start_time, val_true_event_type = start_time.cuda(), event_label.cuda()
-            val_true_duration = duration.cuda()
+    # with torch.no_grad():
+    #     for i, (video_frames, bboxes, poses,  event_label, start_time, duration) in tqdm(enumerate(val_data_loader)):
+    #         val_inputs, val_labels = video_frames.cuda(), event_label.cuda()
+    #         val_bboxes, val_poses = bboxes.cuda(), poses.cuda()
+    #         val_true_start_time, val_true_event_type = start_time.cuda(), event_label.cuda()
+    #         val_true_duration = duration.cuda()
+    #
+    #         # Forward pass
+    #         val_event_predictions, val_timestamps = model(val_inputs, val_bboxes, val_poses)
+    #
+    #         # Calculate evaluation metrics
+    #         val_pred_event_type = torch.argmax(val_event_predictions, dim=1)
 
-            # Forward pass
-            val_event_predictions, val_timestamps = model(val_inputs, val_bboxes, val_poses)
+            # metrics = KISAEvaluationMetric(val_pred_event_type, val_timestamps,
+            #                                 val_true_event_type, val_true_start_time, val_true_duration)
+            #
+            # val_total_metrics += metrics
+            # val_total_batches += 1
 
-            # Calculate evaluation metrics
-            val_pred_event_type = torch.argmax(val_event_predictions, dim=1)
-
-            metrics = KISAEvaluationMetric(val_pred_event_type, val_timestamps,
-                                            val_true_event_type, val_true_start_time, val_true_duration)
-            val_total_metrics += metrics
-            val_total_batches += 1
-
-    # Calculate average metrics for the epoch
-    val_average_metrics = val_total_metrics / val_total_batches
-    print("Validation Metrics:", val_average_metrics)
+    # # Calculate average metrics for the epoch
+    # val_average_metrics = val_total_metrics / val_total_batches
+    # print("Validation Metrics:", val_average_metrics)
 
     # Save the model if it has the best metrics
     print(f"Epoch [{epoch + 1}/{num_epochs}], Average Metrics: {train_average_metrics}")

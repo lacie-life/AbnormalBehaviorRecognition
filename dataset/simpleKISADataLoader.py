@@ -57,15 +57,18 @@ class simpleKISADataLoader(Dataset):
 
         event_label, start_time, duration = self.parse_xml(xml_path)
 
+        start_time = torch.tensor([start_time])
+        duration = torch.tensor([duration])
+
         if self.transform:
             video_frames = [self.transform(frame) for frame in video_frames]
 
-        print("Number frames: " + str(len(video_frames)))
-        print("Number human objects: " + str(len(bboxes)))
-        print("Number human poses: " + str(len(poses)))
-        print(event_label)
-        print(start_time)
-        print(duration)
+        # print("Number frames: " + str(len(video_frames)))
+        # print("Number human objects: " + str(len(bboxes)))
+        # print("Number human poses: " + str(len(poses)))
+        # print(event_label)
+        # print(start_time)
+        # print(duration)
 
         return [
             video_frames,
@@ -80,7 +83,7 @@ class simpleKISADataLoader(Dataset):
         tree = ET.parse(xml_path)
         root = tree.getroot()
 
-        print(xml_path)
+        # print(xml_path)
 
         # Extract label information from XML
         event_label = root.find('.//AlarmDescription').text
@@ -103,12 +106,14 @@ class simpleKISADataLoader(Dataset):
         return frames
 
     def extract_human_information(self, frames):
-        bboxes = []
-        poses = []
+        bboxes = torch.zeros((len(frames), 4))
+        poses = torch.zeros((len(frames), 3, 33))
+        i = 0
         for frame in frames:
-            _, bbox, pose = self.pose_detector.findPose(frame)
-            bboxes.append(bbox)
-            poses.append(pose)
+            _, pose, bbox = self.pose_detector.findPose(frame)
+            bboxes[i] = bbox
+            poses[i] = pose
+            i += 1
 
         return bboxes, poses
 
@@ -120,6 +125,9 @@ def collate_fn(rets):
     event = [ret[3] for ret in rets]
     start_time = [ret[4] for ret in rets]
     duration = [ret[5] for ret in rets]
+
+    bboxes = torch.stack(bboxes)
+    poses = torch.stack(poses)
 
     res = (
         torch.tensor(frames),
