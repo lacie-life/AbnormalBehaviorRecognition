@@ -74,6 +74,9 @@ class simpleABD(nn.Module):
         selected_event_prediction = event_predictions[0][max_prob_index]
         # selected_timestamps = timestamps[0][max_prob_index]
 
+        # out = torch.zeros(1, 7).cuda()
+        # out[0][max_prob_index] = 1.0
+
         # return selected_event_prediction, selected_timestamps
         return event_predictions
 

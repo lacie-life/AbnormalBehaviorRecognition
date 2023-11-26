@@ -79,11 +79,16 @@ for epoch in range(num_epochs):
         # event_predictions, timestamps = model(inputs, bboxes, poses)
         event_predictions = model(inputs, bboxes, poses)
 
-        # print(event_predictions)
-        # print(labels)
+        pred_event_type = torch.argmax(event_predictions, dim=1)
+
+        pred_result = torch.zeros(1, 7).cuda()
+        pred_result[0][pred_event_type] = 1.0
+
+        # print(pred_result)
+        # print(true_event_type)
 
         # Compute loss
-        loss = criterion(event_predictions, labels)
+        loss = criterion(event_predictions, true_event_type)
 
         # Backward pass and optimize
         loss.backward()
@@ -91,7 +96,6 @@ for epoch in range(num_epochs):
 
         # Print statistics
         running_loss += loss.item()
-        print(loss.item())
         if i % 10 == 9:  # Print every 10 mini-batches
             print(f"Epoch [{epoch + 1}/{num_epochs}], "
                   f"Batch [{i + 1}/{len(train_data_loader)}], "
@@ -102,9 +106,6 @@ for epoch in range(num_epochs):
         # pred_event_type = torch.argmax(event_predictions, dim=1)
         # pred_start_time = timestamps[:, 0]
         # pred_duration = timestamps[:, 1]
-
-        # metrics = KISAEvaluationMetric(pred_event_type, timestamps,
-        #                                 true_event_type, true_start_time, true_duration)
 
         metrics = loss.item()
 
@@ -128,9 +129,6 @@ for epoch in range(num_epochs):
     #
     #         # Calculate evaluation metrics
     #         val_pred_event_type = torch.argmax(val_event_predictions, dim=1)
-
-            # metrics = KISAEvaluationMetric(val_pred_event_type, val_timestamps,
-            #                                 val_true_event_type, val_true_start_time, val_true_duration)
             #
             # val_total_metrics += metrics
             # val_total_batches += 1
