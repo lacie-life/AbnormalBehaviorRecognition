@@ -1,5 +1,6 @@
 import torch
 from torch.utils.data import Dataset
+import torchvision.transforms as transforms
 import xml.etree.ElementTree as ET
 from datetime import datetime
 import cv2
@@ -42,6 +43,16 @@ class simpleKISADataLoader(Dataset):
                 if os.path.exists(xml_path):
                     self.file_list.append((video_path, xml_path))
 
+        if transform == None:
+            transform = transforms.Compose([
+                transforms.Resize((224, 224)),  # Resize frames to fit the model input
+                transforms.ToTensor(),  # Convert frames to PyTorch tensors
+                transforms.Normalize(
+                    mean=[0.485, 0.456, 0.406],  # Normalize frames using ImageNet statistics
+                    std=[0.229, 0.224, 0.225]
+                ),
+            ])
+
         self.transform = transform
         self.pose_detector = PoseDetector()
 
@@ -60,8 +71,7 @@ class simpleKISADataLoader(Dataset):
         start_time = torch.tensor([start_time])
         duration = torch.tensor([duration])
 
-        if self.transform:
-            video_frames = [self.transform(frame) for frame in video_frames]
+        video_frames = [cv2.resize(frame, dsize=(640, 640), interpolation=cv2.INTER_CUBIC) for frame in video_frames]
 
         # print("Number frames: " + str(len(video_frames)))
         # print("Number human objects: " + str(len(bboxes)))

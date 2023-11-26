@@ -31,7 +31,7 @@ num_joints = 33
 model = simpleABD(num_frames, frame_channels, num_classes, num_joints)
 
 # Print model summary
-# summary.summary(model, [(3, 1280, 720), (1, 4, 4, 4), (1, 34)])
+# summary.summary(model, [(1, 3, 1280, 720), (1, 4, 4, 4), (1, 3, 33)])
 
 model = model.cuda()
 
