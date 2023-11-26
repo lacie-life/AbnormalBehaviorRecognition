@@ -1,7 +1,7 @@
 from __future__ import division
 import torch
 from torch import nn
-from models import resnext3d
+from jellyfishABD import resnext3d
 import pdb
 import torchvision.models as models
 
@@ -10,7 +10,7 @@ def generate_model( opt):
     assert opt.model_depth in [50, 101]
 
     if opt.model == 'resnext':
-        from models.resnext3d import get_fine_tuning_parameters
+        from resnext3d import get_fine_tuning_parameters
         if opt.model_depth == 50:
             model = resnext3d.resnet50(
                         num_classes=opt.n_classes,
