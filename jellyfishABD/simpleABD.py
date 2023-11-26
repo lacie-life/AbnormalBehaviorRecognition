@@ -42,7 +42,7 @@ class simpleABD(nn.Module):
         # print(frames.shape)
         # print(poses.shape)
 
-        frames = frames.permute(0, 4, 1, 2, 3)
+        frames = frames.permute(0, 2, 1, 4, 3)
 
         x = self.model(frames)
 
@@ -67,15 +67,12 @@ class simpleABD(nn.Module):
         fused_features = self.dropout(self.relu(self.fc_fusion_1(combined_features)))
         fused_features = self.dropout(self.relu(self.fc_fusion_2(fused_features)))
 
-        event_predictions = self.fc_output_classes(fused_features)
+        event_predictions = self.relu(self.fc_output_classes(fused_features))
         # timestamps = self.fc_output_timestamps(fused_features)
 
         max_prob_index = torch.argmax(event_predictions, dim=1)
         selected_event_prediction = event_predictions[0][max_prob_index]
         # selected_timestamps = timestamps[0][max_prob_index]
-
-        # out = torch.zeros(1, 7).cuda()
-        # out[0][max_prob_index] = 1.0
 
         # return selected_event_prediction, selected_timestamps
         return event_predictions

@@ -79,12 +79,7 @@ for epoch in range(num_epochs):
         # event_predictions, timestamps = model(inputs, bboxes, poses)
         event_predictions = model(inputs, bboxes, poses)
 
-        pred_event_type = torch.argmax(event_predictions, dim=1)
-
-        pred_result = torch.zeros(1, 7).cuda()
-        pred_result[0][pred_event_type] = 1.0
-
-        # print(pred_result)
+        # print(event_predictions)
         # print(true_event_type)
 
         # Compute loss

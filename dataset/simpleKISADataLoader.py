@@ -1,6 +1,7 @@
 import torch
 from torch.utils.data import Dataset
 import torchvision.transforms as transforms
+import torch.nn.functional as F
 import xml.etree.ElementTree as ET
 from datetime import datetime
 import cv2
@@ -45,6 +46,7 @@ class simpleKISADataLoader(Dataset):
 
         if transform == None:
             transform = transforms.Compose([
+                transforms.ToPILImage(),
                 transforms.Resize((224, 224)),  # Resize frames to fit the model input
                 transforms.ToTensor(),  # Convert frames to PyTorch tensors
                 transforms.Normalize(
@@ -74,7 +76,7 @@ class simpleKISADataLoader(Dataset):
         start_time = torch.tensor([start_time])
         duration = torch.tensor([duration])
 
-        video_frames = [cv2.resize(frame, dsize=(224, 224), interpolation=cv2.INTER_CUBIC) for frame in video_frames]
+        video_frames = torch.stack([self.transform(frame) for frame in video_frames])
 
         # print("Number frames: " + str(len(video_frames)))
         # print("Number human objects: " + str(len(bboxes)))
@@ -139,6 +141,7 @@ def collate_fn(rets):
     start_time = [ret[4] for ret in rets]
     duration = [ret[5] for ret in rets]
 
+    frames = torch.stack(frames)
     bboxes = torch.stack(bboxes)
     poses = torch.stack(poses)
     event = torch.stack(event)
