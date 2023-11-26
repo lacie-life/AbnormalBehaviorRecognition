@@ -119,8 +119,10 @@ class ResNeXt(nn.Module):
         last_duration = int(math.ceil(sample_duration / 16))
         last_size = int(math.ceil(sample_size / 32))
         self.avgpool = nn.AvgPool3d( (last_duration, last_size, last_size), stride=1)
+        self.linear_layer = torch.nn.Linear(32768, 2048)
         self.fc = nn.Linear(cardinality * 32 * block.expansion, num_classes)
-        
+
+
         #layer to output on forward pass
         self.output_layers = output_layers
 
@@ -178,22 +180,23 @@ class ResNeXt(nn.Module):
         x5 = self.avgpool(x4)
 
         x6 = x5.view(x5.size(0), -1)
-        x7 = self.fc(x6)
+        x7 = self.linear_layer(x6)
+        x8 = self.fc(x7)
         
-        if len(self.output_layers) == 0:
-            return x7
-        else:
-            out = []
-            out.append(x7)
-            for i in self.output_layers:
-                if i == 'avgpool':
-                    out.append(x6)
-                if i == 'layer4':
-                    out.append(x4)
-                if i == 'layer3':
-                    out.append(x3)
+        # if len(self.output_layers) == 0:
+        #     return x8
+        # else:
+        #     out = []
+        #     out.append(x8)
+        #     for i in self.output_layers:
+        #         if i == 'avgpool':
+        #             out.append(x6)
+        #         if i == 'layer4':
+        #             out.append(x4)
+        #         if i == 'layer3':
+        #             out.append(x3)
 
-        return out
+        return x8
 
     def freeze_batch_norm(self):
         for name,m in self.named_modules():

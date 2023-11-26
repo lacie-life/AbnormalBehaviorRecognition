@@ -26,12 +26,11 @@ num_frames = 60
 frame_channels = 3
 num_classes = 7
 num_joints = 33
+fps = 30
+sample = 30
 
 # Initialize the model
 model = simpleABD(num_frames, frame_channels, num_classes, num_joints)
-
-# Print model summary
-# summary.summary(model, [(1, 3, 1280, 720), (1, 4, 4, 4), (1, 3, 33)])
 
 model = model.cuda()
 
@@ -44,10 +43,10 @@ train_path = '/home/lacie/Datasets/KISA/ver-3/train'
 val_path = '/home/lacie/Datasets/KISA/ver-3/val'
 
 # Initialize dataset path
-train_dataset = simpleKISADataLoader(train_path, sample=10, transform=None)
+train_dataset = simpleKISADataLoader(train_path, sample=30, transform=None)
 train_data_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
 
-val_dataset = simpleKISADataLoader(val_path, sample=10, transform=None)
+val_dataset = simpleKISADataLoader(val_path, sample=30, transform=None)
 val_data_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
 
 best_metrics = 0.0
@@ -65,6 +64,8 @@ for epoch in range(num_epochs):
     val_total_batches = 0
 
     for i, (video_frames, bboxes, poses, event_label, start_time, duration) in tqdm(enumerate(train_data_loader)):
+        if video_frames.shape[1] < fps * 10 / sample:
+            continue
         inputs = video_frames.float().cuda()
         labels = event_label.float().cuda()
         bboxes = bboxes.float().cuda()
@@ -75,7 +76,11 @@ for epoch in range(num_epochs):
         optimizer.zero_grad()
 
         # Forward pass
-        event_predictions, timestamps = model(inputs, bboxes, poses)
+        # event_predictions, timestamps = model(inputs, bboxes, poses)
+        event_predictions = model(inputs, bboxes, poses)
+
+        # print(event_predictions)
+        # print(labels)
 
         # Compute loss
         loss = criterion(event_predictions, labels)
@@ -86,6 +91,7 @@ for epoch in range(num_epochs):
 
         # Print statistics
         running_loss += loss.item()
+        print(loss.item())
         if i % 10 == 9:  # Print every 10 mini-batches
             print(f"Epoch [{epoch + 1}/{num_epochs}], "
                   f"Batch [{i + 1}/{len(train_data_loader)}], "
@@ -93,9 +99,9 @@ for epoch in range(num_epochs):
             running_loss = 0.0
 
         # Calculate evaluation metrics
-        pred_event_type = torch.argmax(event_predictions, dim=1)
-        pred_start_time = timestamps[:, 0]
-        pred_duration = timestamps[:, 1]
+        # pred_event_type = torch.argmax(event_predictions, dim=1)
+        # pred_start_time = timestamps[:, 0]
+        # pred_duration = timestamps[:, 1]
 
         # metrics = KISAEvaluationMetric(pred_event_type, timestamps,
         #                                 true_event_type, true_start_time, true_duration)

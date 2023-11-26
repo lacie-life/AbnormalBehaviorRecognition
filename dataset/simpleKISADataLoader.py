@@ -68,10 +68,13 @@ class simpleKISADataLoader(Dataset):
 
         event_label, start_time, duration = self.parse_xml(xml_path)
 
+        event_label_encode = torch.zeros(7)
+        event_label_encode[event_label] = 1.0
+
         start_time = torch.tensor([start_time])
         duration = torch.tensor([duration])
 
-        video_frames = [cv2.resize(frame, dsize=(640, 640), interpolation=cv2.INTER_CUBIC) for frame in video_frames]
+        video_frames = [cv2.resize(frame, dsize=(224, 224), interpolation=cv2.INTER_CUBIC) for frame in video_frames]
 
         # print("Number frames: " + str(len(video_frames)))
         # print("Number human objects: " + str(len(bboxes)))
@@ -84,7 +87,7 @@ class simpleKISADataLoader(Dataset):
             video_frames,
             bboxes,
             poses,
-            event_label,
+            event_label_encode,
             start_time,
             duration
         ]
@@ -138,6 +141,7 @@ def collate_fn(rets):
 
     bboxes = torch.stack(bboxes)
     poses = torch.stack(poses)
+    event = torch.stack(event)
 
     res = (
         torch.tensor(frames),
