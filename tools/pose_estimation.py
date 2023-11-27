@@ -44,7 +44,7 @@ class PoseDetector:
 
         if len(humanObjects) == 0:
             self.poses = torch.zeros((3, 33))
-            self.boxes = torch.zeros((1, 4))
+            self.boxes = torch.zeros((4, 1))
             return img, self.poses, self.boxes
 
         for obj in humanObjects:
@@ -52,7 +52,7 @@ class PoseDetector:
             cropped_img = imgRGB[bbox[1]:bbox[3], bbox[0]:bbox[2]]
 
             pose = self.pose.process(cropped_img)
-            tmpBB.append(torch.tensor(bbox, dtype=torch.float32))
+            tmpBB.append(torch.tensor(bbox, dtype=torch.float32).reshape(4, 1))
 
             if pose.pose_landmarks:
                 tmp_pose = []

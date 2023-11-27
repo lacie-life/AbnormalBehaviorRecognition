@@ -68,6 +68,8 @@ class simpleKISADataLoader(Dataset):
 
         bboxes, poses = self.extract_human_information(video_frames)
 
+        # print(bboxes.shape)
+
         event_label, start_time, duration = self.parse_xml(xml_path)
 
         event_label_encode = torch.zeros(7)
@@ -121,7 +123,7 @@ class simpleKISADataLoader(Dataset):
         return frames
 
     def extract_human_information(self, frames):
-        bboxes = torch.zeros((len(frames), 4))
+        bboxes = torch.zeros((len(frames), 4, 1))
         poses = torch.zeros((len(frames), 3, 33))
         i = 0
         for frame in frames:

@@ -6,6 +6,7 @@ from jellyfishABD.simpleABD import simpleABD, KISAEvaluationMetric
 from dataset.simpleKISADataLoader import simpleKISADataLoader, collate_fn
 import torchsummary as summary
 from tqdm import tqdm
+import csv
 
 event_list = {'Abandonment': 0,
               'Falldown': 1,
@@ -22,12 +23,12 @@ learning_rate = 0.001
 batch_size = 1
 
 # Define model parameters
-num_frames = 60
 frame_channels = 3
 num_classes = 7
 num_joints = 33
 fps = 30
-sample = 30
+sample = 10
+num_frames = fps * 10 // sample
 
 # Initialize the model
 model = simpleABD(num_frames, frame_channels, num_classes, num_joints)
@@ -43,15 +44,17 @@ train_path = '/home/lacie/Datasets/KISA/ver-3/train'
 val_path = '/home/lacie/Datasets/KISA/ver-3/val'
 
 # Initialize dataset path
-train_dataset = simpleKISADataLoader(train_path, sample=30, transform=None)
+train_dataset = simpleKISADataLoader(train_path, sample=sample, transform=None)
 train_data_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
 
-val_dataset = simpleKISADataLoader(val_path, sample=30, transform=None)
+val_dataset = simpleKISADataLoader(val_path, sample=sample, transform=None)
 val_data_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
 
 best_metrics = 0.0
 
 print("Data train: " + str(len(train_data_loader)))
+
+log_file = open('log.csv', 'w')
 
 # Training loop
 for epoch in range(num_epochs):
@@ -95,7 +98,12 @@ for epoch in range(num_epochs):
             print(f"Epoch [{epoch + 1}/{num_epochs}], "
                   f"Batch [{i + 1}/{len(train_data_loader)}], "
                   f"Loss: {running_loss / 10:.4f}")
+
+            log_file.write(f"Epoch [{epoch + 1}/{num_epochs}], "
+                           f"Batch [{i + 1}/{len(train_data_loader)}], "
+                           f"Loss: {running_loss / 10:.4f}\n")
             running_loss = 0.0
+
 
         # Calculate evaluation metrics
         # pred_event_type = torch.argmax(event_predictions, dim=1)

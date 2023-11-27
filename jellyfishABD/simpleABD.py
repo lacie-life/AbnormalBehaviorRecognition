@@ -8,6 +8,8 @@ class simpleABD(nn.Module):
     def __init__(self, num_frames, frame_channels, num_classes, num_joints):
         super(simpleABD, self).__init__()
 
+        self.num_frames = num_frames
+
         self.model = resnext3d.resnet50(
             num_classes=256,
             shortcut_type='B',
@@ -15,17 +17,18 @@ class simpleABD(nn.Module):
             sample_size=112,
             sample_duration=16,
             input_channels=frame_channels,
-            output_layers=['append'],)
+            output_layers=['append'],
+            number_frames=num_frames)
 
 
         self.conv2d_bbox = nn.Conv2d(in_channels=4, out_channels=64, kernel_size=1, padding=1)
         self.maxpool2d = nn.MaxPool2d(kernel_size=(2, 2), stride=(2, 2))
-        self.linear_layer_bb = nn.Linear(384, 256)
+        self.linear_layer_bb = nn.Linear(1024, 256)
 
         self.fc_poses_1 = nn.Linear(num_joints, 64)
         self.fc_poses_2 = nn.Linear(64, 128)
         self.fc_poses_3 = nn.Linear(128, 256)
-        self.linear_layer_pose = nn.Linear(7680, 256)
+        self.linear_layer_pose = nn.Linear(self.num_frames * frame_channels * 256, 256)
 
         self.fc_fusion_1 = nn.Linear(256 + 256 + 256, 512)
         self.fc_fusion_2 = nn.Linear(512, 256)
@@ -46,7 +49,8 @@ class simpleABD(nn.Module):
 
         x = self.model(frames)
 
-        bounding_boxes = bounding_boxes.view(1, 4, 10, 1)
+        bounding_boxes = bounding_boxes.permute(0, 2, 1, 3)
+        # print(bounding_boxes.shape)
 
         bbox_features = self.relu(self.conv2d_bbox(bounding_boxes))
         bbox_features = self.maxpool2d(bbox_features)

@@ -94,7 +94,8 @@ class ResNeXt(nn.Module):
                  cardinality=32,
                  num_classes=400,
                  input_channels=3,
-                 output_layers=[]):
+                 output_layers=[],
+                 number_frames=30):
         self.inplanes = 64
         super(ResNeXt, self).__init__()
         self.conv1 = nn.Conv3d(
@@ -119,7 +120,7 @@ class ResNeXt(nn.Module):
         last_duration = int(math.ceil(sample_duration / 16))
         last_size = int(math.ceil(sample_size / 32))
         self.avgpool = nn.AvgPool3d( (last_duration, last_size, last_size), stride=1)
-        self.linear_layer = torch.nn.Linear(32768, 2048)
+        self.linear_layer = torch.nn.Linear(65536, 2048)
         self.fc = nn.Linear(cardinality * 32 * block.expansion, num_classes)
 
 
