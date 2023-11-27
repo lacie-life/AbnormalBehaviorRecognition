@@ -54,6 +54,7 @@ best_metrics = 0.0
 
 print("Data train: " + str(len(train_data_loader)))
 
+# Initialize log file
 log_file = open('log.csv', 'w')
 
 # Training loop
@@ -121,7 +122,7 @@ for epoch in range(num_epochs):
 
     # Validation loop
     # with torch.no_grad():
-    #     for i, (video_frames, bboxes, poses,  event_label, start_time, duration) in tqdm(enumerate(val_data_loader)):
+    #     for i, (video_frames, bboxes, poses, event_label, start_time, duration) in tqdm(enumerate(val_data_loader)):
     #         val_inputs, val_labels = video_frames.cuda(), event_label.cuda()
     #         val_bboxes, val_poses = bboxes.cuda(), poses.cuda()
     #         val_true_start_time, val_true_event_type = start_time.cuda(), event_label.cuda()
@@ -132,9 +133,9 @@ for epoch in range(num_epochs):
     #
     #         # Calculate evaluation metrics
     #         val_pred_event_type = torch.argmax(val_event_predictions, dim=1)
-            #
-            # val_total_metrics += metrics
-            # val_total_batches += 1
+    #
+    #         val_total_metrics += metrics
+    #         val_total_batches += 1
 
     # # Calculate average metrics for the epoch
     # val_average_metrics = val_total_metrics / val_total_batches

@@ -3,6 +3,10 @@ import csv
 import numpy as np
 import pdb
 import os
+import matplotlib.pyplot as plt
+from sklearn.metrics import confusion_matrix
+import seaborn as sns
+
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
@@ -137,3 +141,13 @@ def calculate_accuracy_video(output_buffer, i):
     # print(pred_value)
     # print("accuracy = ", 1*(np.equal(true_value, pred_value)).sum()/len(true_value))
     return 1*(np.equal(true_value, pred_value)).sum()/len(true_value)
+
+def plot_confusion_matrix(true_labels, pred_labels, classes, save_path, name):
+    cm = confusion_matrix(true_labels, pred_labels)
+    cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+    print("Normalized confusion matrix")
+    print(cm)
+    plt.figure(figsize=(10, 10))
+    sns.heatmap(cm, annot=True, cmap='Blues', xticklabels=classes, yticklabels=classes)
+    plt.savefig(save_path)
+    plt.close()

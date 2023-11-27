@@ -38,6 +38,7 @@ class simpleABD(nn.Module):
 
         self.relu = nn.ReLU()
         self.dropout = nn.Dropout(0.5)
+        self.sigmoid = nn.Sigmoid()
 
     def forward(self, frames, bounding_boxes, poses):
 
@@ -71,14 +72,14 @@ class simpleABD(nn.Module):
         fused_features = self.dropout(self.relu(self.fc_fusion_1(combined_features)))
         fused_features = self.dropout(self.relu(self.fc_fusion_2(fused_features)))
 
-        event_predictions = self.relu(self.fc_output_classes(fused_features))
-        # timestamps = self.fc_output_timestamps(fused_features)
+        event_predictions = self.fc_output_classes(fused_features)
 
-        max_prob_index = torch.argmax(event_predictions, dim=1)
-        selected_event_prediction = event_predictions[0][max_prob_index]
-        # selected_timestamps = timestamps[0][max_prob_index]
+        event_predictions = self.sigmoid(event_predictions)
 
-        # return selected_event_prediction, selected_timestamps
+        # max_prob_index = torch.argmax(event_predictions, dim=1)
+        # selected_event_prediction = event_predictions[0][max_prob_index]
+
+        # return selected_event_prediction
         return event_predictions
 
 
