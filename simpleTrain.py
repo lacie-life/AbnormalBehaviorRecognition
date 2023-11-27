@@ -18,7 +18,7 @@ event_list = {'Abandonment': 0,
 
 
 # Define hyperparameters
-num_epochs = 10
+num_epochs = 30
 learning_rate = 0.001
 batch_size = 1
 
@@ -56,8 +56,9 @@ best_metrics = 0.0
 
 print("Data train: " + str(len(train_data_loader)))
 
-# Initialize log file
-log_file = open('log.csv', 'w')
+log_file = open('log.txt', 'w')
+log_file.writelines("Data train: " + str(len(train_data_loader)) + "\n")
+log_file.close()
 
 # Training loop
 for epoch in range(num_epochs):
@@ -85,9 +86,6 @@ for epoch in range(num_epochs):
         # event_predictions, timestamps = model(inputs, bboxes, poses)
         event_predictions = model(inputs, bboxes, poses)
 
-        # print(event_predictions)
-        # print(true_event_type)
-
         # Compute loss
         loss = criterion(event_predictions, true_event_type)
 
@@ -102,16 +100,12 @@ for epoch in range(num_epochs):
                   f"Batch [{i + 1}/{len(train_data_loader)}], "
                   f"Loss: {running_loss / 10:.4f}")
 
-            log_file.write(f"Epoch [{epoch + 1}/{num_epochs}], "
-                           f"Batch [{i + 1}/{len(train_data_loader)}], "
-                           f"Loss: {running_loss / 10:.4f}\n")
+            with open('log.txt', 'a') as log_file:
+                log_file.writelines(f"Epoch [{epoch + 1}/{num_epochs}], "
+                                    f"Batch [{i + 1}/{len(train_data_loader)}], "
+                                    f"Loss: {running_loss / 10:.4f}\n")
+                log_file.close()
             running_loss = 0.0
-
-
-        # Calculate evaluation metrics
-        # pred_event_type = torch.argmax(event_predictions, dim=1)
-        # pred_start_time = timestamps[:, 0]
-        # pred_duration = timestamps[:, 1]
 
         metrics = loss.item()
 
@@ -122,13 +116,19 @@ for epoch in range(num_epochs):
     train_average_metrics = train_total_metrics / train_total_batches
     print("Training Metrics:", train_average_metrics)
 
+    torch.save(model.state_dict(), f'model_{num_epochs}.pt')
+
     # Validation loop
     # with torch.no_grad():
+    #     gt_label = []
+    #     pred_label = []
     #     for i, (video_frames, bboxes, poses, event_label, start_time, duration) in tqdm(enumerate(val_data_loader)):
     #         val_inputs, val_labels = video_frames.cuda(), event_label.cuda()
     #         val_bboxes, val_poses = bboxes.cuda(), poses.cuda()
     #         val_true_start_time, val_true_event_type = start_time.cuda(), event_label.cuda()
     #         val_true_duration = duration.cuda()
+    #
+    #         gt_label.append(event_label)
     #
     #         # Forward pass
     #         val_event_predictions, val_timestamps = model(val_inputs, val_bboxes, val_poses)
@@ -136,8 +136,7 @@ for epoch in range(num_epochs):
     #         # Calculate evaluation metrics
     #         val_pred_event_type = torch.argmax(val_event_predictions, dim=1)
     #
-    #         val_total_metrics += metrics
-    #         val_total_batches += 1
+    #         pred_label.append(event_list[val_pred_event_type])
 
     # # Calculate average metrics for the epoch
     # val_average_metrics = val_total_metrics / val_total_batches
@@ -152,5 +151,6 @@ for epoch in range(num_epochs):
     else:
         print(f"Epoch [{epoch + 1}/{num_epochs}], Best Metrics: {best_metrics}")
 
+print('Finished Training')
 
 

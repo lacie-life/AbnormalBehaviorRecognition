@@ -1,0 +1,10 @@
+Data train: 2506
+Epoch [1/30], Batch [10/2506], Loss: 1.7056
+Epoch [1/30], Batch [20/2506], Loss: 1.5243
+Epoch [1/30], Batch [30/2506], Loss: 1.2029
+Epoch [1/30], Batch [40/2506], Loss: 1.0942
+Epoch [1/30], Batch [50/2506], Loss: 0.8330
+Epoch [1/30], Batch [60/2506], Loss: 0.9098
+Epoch [1/30], Batch [70/2506], Loss: 1.7660
+Epoch [1/30], Batch [80/2506], Loss: 1.5352
+Epoch [1/30], Batch [90/2506], Loss: 1.2305
