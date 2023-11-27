@@ -11,7 +11,7 @@ video_path = './test/video.mp4'
 num_frames = 60
 frame_channels = 3
 num_classes = 7
-num_joints = 17
+num_joints = 33
 
 # Initialize the model and load trained weights
 model = simpleABD(num_frames, frame_channels, num_classes, num_joints)  # Replace with your model architecture
@@ -48,6 +48,7 @@ while True:
         ret, frame = video_capture.read()
         if not ret:
             break
+        frame = cv2.resize(frame, (224, 224), interpolation = cv2.INTER_LINEAR)
         segment_video.append(frame)
         start_frame += 1
 
@@ -90,3 +91,6 @@ for seg in input_frames:
 
 # Print the video summary
 print(video_summary)
+
+# TODO: Extract start time and duration
+
