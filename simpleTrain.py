@@ -2,7 +2,7 @@ import torch
 from torch.utils.data import DataLoader
 import torch.optim as optim
 import torch.nn as nn
-from jellyfishABD.simpleABD import simpleABD, KISAEvaluationMetric
+from jellyfishABD.simpleABD import simpleABD, KISAEvaluationMetric, MaxProbabilityLoss
 from dataset.simpleKISADataLoader import simpleKISADataLoader, collate_fn
 import torchsummary as summary
 from tqdm import tqdm
@@ -36,7 +36,9 @@ model = simpleABD(num_frames, frame_channels, num_classes, num_joints)
 model = model.cuda()
 
 # Define loss function and optimizer
-criterion = nn.CrossEntropyLoss()
+# criterion = nn.CrossEntropyLoss()
+criterion = MaxProbabilityLoss()
+
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
 # Define dataset path
@@ -144,7 +146,7 @@ for epoch in range(num_epochs):
     # Save the model if it has the best metrics
     print(f"Epoch [{epoch + 1}/{num_epochs}], Average Metrics: {train_average_metrics}")
     if train_average_metrics > best_metrics:
-        torch.save(model.state_dict(), 'best_model.pt')
+        torch.save(model.state_dict(), f'best_model_{num_epochs}.pt')
         best_metrics = train_average_metrics
         print(f"Epoch [{epoch + 1}/{num_epochs}], Best Metrics: {best_metrics}")
     else:

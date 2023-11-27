@@ -89,3 +89,22 @@ def KISAEvaluationMetric(event_predictions, timestamps, true_event_type, true_st
     timestamp_loss = nn.MSELoss()(timestamps, torch.cat((true_start_time, true_duration), dim=1))
 
     return event_loss + timestamp_loss
+
+
+class MaxProbabilityLoss(nn.Module):
+    def __init__(self):
+        super(MaxProbabilityLoss, self).__init__()
+
+    def forward(self, outputs, targets):
+        ce_loss = nn.CrossEntropyLoss()(outputs, targets)  # Calculate cross-entropy loss
+
+        # Find the index of the maximum probability class
+        max_prob_index = torch.argmax(outputs, dim=1)
+
+        # Create a mask to identify correct predictions (1 for correct, 0 for incorrect)
+        correct_predictions = (max_prob_index == targets).float()
+
+        # Modify the loss to penalize only incorrect predictions
+        modified_loss = (1.0 - correct_predictions) * ce_loss
+
+        return torch.mean(modified_loss)
