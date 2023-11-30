@@ -4,9 +4,11 @@ import torch.optim as optim
 import torch.nn as nn
 from jellyfishABD.simpleABD import simpleABD, KISAEvaluationMetric, MaxProbabilityLoss
 from dataset.simpleKISADataLoader import simpleKISADataLoader, collate_fn
+from tools.utils import plot_confusion_matrix
 import torchsummary as summary
 from tqdm import tqdm
 import csv
+import os
 
 event_list = {'Abandonment': 0,
               'Falldown': 1,
@@ -16,6 +18,7 @@ event_list = {'Abandonment': 0,
               'Violence': 5,
               'Normal': 6}
 
+event_classes = [0, 1, 2, 3, 4, 5, 6]
 
 # Define hyperparameters
 num_epochs = 30
@@ -48,6 +51,11 @@ optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 train_path = '/home/lacie/Datasets/KISA/ver-3/train'
 val_path = '/home/lacie/Datasets/KISA/ver-3/val'
 
+results_path = './results'
+
+if not os.path.exists(results_path):
+    os.makedirs(results_path)
+
 # Initialize dataset path
 train_dataset = simpleKISADataLoader(train_path, sample=sample, transform=None)
 train_data_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
@@ -73,6 +81,12 @@ for epoch in range(num_epochs):
     val_total_metrics = 0.0
     val_total_batches = 0
 
+    train_gt = []
+    train_pred = []
+
+    val_gt = []
+    val_pred = []
+
     for i, (video_frames, bboxes, poses, event_label, start_time, duration) in tqdm(enumerate(train_data_loader)):
         if video_frames.shape[1] < fps * 10 / sample:
             continue
@@ -92,6 +106,9 @@ for epoch in range(num_epochs):
         # Forward pass
         # event_predictions, timestamps = model(inputs, bboxes, poses)
         event_predictions = model(inputs, bboxes, poses)
+
+        train_gt.append(event_list[true_event_type])
+        train_pred.append(event_list[torch.argmax(event_predictions, dim=1)])
 
         # Compute loss
         loss = criterion(event_predictions, true_event_type)
@@ -123,36 +140,32 @@ for epoch in range(num_epochs):
     train_average_metrics = train_total_metrics / train_total_batches
     print("Training Metrics:", train_average_metrics)
 
-    torch.save(model.state_dict(), f'model_{num_epochs}.pt')
+    torch.save(model.state_dict(), f'model_{epoch}.pt')
 
     # Validation loop
-    # with torch.no_grad():
-    #     gt_label = []
-    #     pred_label = []
-    #     for i, (video_frames, bboxes, poses, event_label, start_time, duration) in tqdm(enumerate(val_data_loader)):
-    #         val_inputs, val_labels = video_frames.cuda(), event_label.cuda()
-    #         val_bboxes, val_poses = bboxes.cuda(), poses.cuda()
-    #         val_true_start_time, val_true_event_type = start_time.cuda(), event_label.cuda()
-    #         val_true_duration = duration.cuda()
-    #
-    #         gt_label.append(event_label)
-    #
-    #         # Forward pass
-    #         val_event_predictions, val_timestamps = model(val_inputs, val_bboxes, val_poses)
-    #
-    #         # Calculate evaluation metrics
-    #         val_pred_event_type = torch.argmax(val_event_predictions, dim=1)
-    #
-    #         pred_label.append(event_list[val_pred_event_type])
+    with torch.no_grad():
+        for i, (video_frames, bboxes, poses, event_label, start_time, duration) in tqdm(enumerate(val_data_loader)):
+            val_inputs, val_labels = video_frames.cuda(), event_label.cuda()
+            val_bboxes, val_poses = bboxes.cuda(), poses.cuda()
+            val_true_start_time, val_true_event_type = start_time.cuda(), event_label.cuda()
+            val_true_duration = duration.cuda()
 
-    # # Calculate average metrics for the epoch
-    # val_average_metrics = val_total_metrics / val_total_batches
-    # print("Validation Metrics:", val_average_metrics)
+            # Forward pass
+            val_event_predictions, val_timestamps = model(val_inputs, val_bboxes, val_poses)
+
+            # Calculate evaluation metrics
+            val_pred_event_type = torch.argmax(val_event_predictions, dim=1)
+
+            val_gt.append(event_list[val_labels])
+            val_pred.append(event_list[val_pred_event_type])
+
+    plot_confusion_matrix(val_gt, val_pred, event_classes, results_path + f'confusion_matrix_{epoch}', f'confusion_matrix_val_{epoch}.png')
+    plot_confusion_matrix(train_gt, train_pred, event_classes, results_path + f'confusion_matrix_{epoch}', f'confusion_matrix_train_{epoch}.png')
 
     # Save the model if it has the best metrics
     print(f"Epoch [{epoch + 1}/{num_epochs}], Average Metrics: {train_average_metrics}")
     if train_average_metrics > best_metrics:
-        torch.save(model.state_dict(), f'best_model_{num_epochs}.pt')
+        torch.save(model.state_dict(), results_path + f'best_model_{epoch}.pt')
         best_metrics = train_average_metrics
         print(f"Epoch [{epoch + 1}/{num_epochs}], Best Metrics: {best_metrics}")
     else:

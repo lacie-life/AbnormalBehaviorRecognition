@@ -143,11 +143,15 @@ def calculate_accuracy_video(output_buffer, i):
     return 1*(np.equal(true_value, pred_value)).sum()/len(true_value)
 
 def plot_confusion_matrix(true_labels, pred_labels, classes, save_path, name):
+
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
+
     cm = confusion_matrix(true_labels, pred_labels)
     cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
     print("Normalized confusion matrix")
     print(cm)
     plt.figure(figsize=(10, 10))
     sns.heatmap(cm, annot=True, cmap='Blues', xticklabels=classes, yticklabels=classes)
-    plt.savefig(save_path)
+    plt.savefig(save_path + name)
     plt.close()
