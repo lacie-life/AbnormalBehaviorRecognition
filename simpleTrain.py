@@ -59,7 +59,7 @@ best_metrics = 0.0
 
 print("Data train: " + str(len(train_data_loader)))
 
-log_file = open('log.txt', 'w')
+log_file = open('log_1.txt', 'w')
 log_file.writelines("Data train: " + str(len(train_data_loader)) + "\n")
 log_file.close()
 
@@ -107,7 +107,7 @@ for epoch in range(num_epochs):
                   f"Batch [{i + 1}/{len(train_data_loader)}], "
                   f"Loss: {running_loss / 10:.4f}")
 
-            with open('log.txt', 'a') as log_file:
+            with open('log_1.txt', 'a') as log_file:
                 log_file.writelines(f"Epoch [{epoch + 1}/{num_epochs}], "
                                     f"Batch [{i + 1}/{len(train_data_loader)}], "
                                     f"Loss: {running_loss / 10:.4f}\n")
