@@ -7223,3 +7223,6 @@ Epoch [30/30], Batch [670/2506], Loss: 0.3667
 Epoch [30/30], Batch [680/2506], Loss: 0.4389
 Epoch [30/30], Batch [690/2506], Loss: 0.6442
 Epoch [30/30], Batch [700/2506], Loss: 0.8442
+Epoch [30/30], Batch [710/2506], Loss: 0.6555
+Epoch [30/30], Batch [720/2506], Loss: 0.2780
+Epoch [30/30], Batch [730/2506], Loss: 0.2780
