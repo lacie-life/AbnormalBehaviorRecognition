@@ -47,11 +47,9 @@ class simpleABD(nn.Module):
         # print(poses.shape)
 
         frames = frames.permute(0, 2, 1, 4, 3)
+        bounding_boxes = bounding_boxes.permute(0, 2, 1, 3)
 
         x = self.model(frames)
-
-        bounding_boxes = bounding_boxes.permute(0, 2, 1, 3)
-        # print(bounding_boxes.shape)
 
         bbox_features = self.relu(self.conv2d_bbox(bounding_boxes))
         bbox_features = self.maxpool2d(bbox_features)
@@ -64,9 +62,6 @@ class simpleABD(nn.Module):
         poses_features = poses_features.view(poses_features.size(0), -1)
         poses_features = self.linear_layer_pose(poses_features)
 
-        # print(x.shape)
-        # print(bbox_features.shape)
-        # print(poses_features.shape)
 
         combined_features = torch.cat((x, bbox_features, poses_features), dim=1)
         fused_features = self.dropout(self.relu(self.fc_fusion_1(combined_features)))

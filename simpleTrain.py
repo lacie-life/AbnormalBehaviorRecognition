@@ -35,6 +35,9 @@ model = simpleABD(num_frames, frame_channels, num_classes, num_joints)
 
 model = model.cuda()
 
+# Print model summary
+# summary.summary(model, [[30, 3, 224, 224], [30, 4, 1], [30, 3, 33]])
+
 # Define loss function and optimizer
 # criterion = nn.CrossEntropyLoss()
 criterion = MaxProbabilityLoss()
@@ -81,6 +84,10 @@ for epoch in range(num_epochs):
         true_duration = duration.cuda()
 
         optimizer.zero_grad()
+
+        # print(inputs.shape)
+        # print(bboxes.shape)
+        # print(poses.shape)
 
         # Forward pass
         # event_predictions, timestamps = model(inputs, bboxes, poses)
