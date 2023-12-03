@@ -11,7 +11,7 @@ class simpleABD(nn.Module):
         self.num_frames = num_frames
 
         self.model = resnext3d.resnet50(
-            num_classes=256,
+            num_classes=6,
             shortcut_type='B',
             cardinality=32,
             sample_size=112,
