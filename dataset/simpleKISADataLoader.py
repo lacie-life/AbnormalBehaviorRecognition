@@ -14,8 +14,7 @@ event_list = {'Abandonment': 0,
               'FireDetection': 2,
               'Intrusion': 3,
               'Loitering': 4,
-              'Violence': 5,
-              'Normal': 6}
+              'Violence': 5}
 
 
 def time2second(time_string):
@@ -71,8 +70,8 @@ class simpleKISADataLoader(Dataset):
         # print(bboxes.shape)
 
         event_label, start_time, duration = self.parse_xml(xml_path)
-
-        event_label_encode = torch.zeros(7)
+        print(event_label)
+        event_label_encode = torch.zeros(6)
         event_label_encode[event_label] = 1.0
 
         start_time = torch.tensor([start_time])
@@ -103,7 +102,7 @@ class simpleKISADataLoader(Dataset):
         # print(xml_path)
 
         # Extract label information from XML
-        event_label = root.find('.//AlarmDescription').text
+        event_label = root.find('.//Scenario').text
         start_time = root.find(".//StartTime").text
         duration = root.find(".//AlarmDuration").text
 

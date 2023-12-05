@@ -14,7 +14,7 @@ def train(config):
 
     loaders = {
         p: get_loader(data_path, p, config.batch_size, config.num_workers, config.dynamic_frames, config.num_frames, config.slowfast)
-            for p in [ 'train', 'val']
+            for p in ['train', 'val']
     }
 
     wandb_logger = WandbLogger(project='video-classification')

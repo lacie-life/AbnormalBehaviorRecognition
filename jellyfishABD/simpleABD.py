@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from jellyfishABD import resnext3d
+from jellyfishABD import resnext3d, csn, resnet3d
 
 
 class simpleABD(nn.Module):
@@ -10,15 +10,19 @@ class simpleABD(nn.Module):
 
         self.num_frames = num_frames
 
-        self.model = resnext3d.resnet50(
-            num_classes=6,
-            shortcut_type='B',
-            cardinality=32,
-            sample_size=112,
-            sample_duration=16,
-            input_channels=frame_channels,
-            output_layers=['append'],
-            number_frames=num_frames)
+        # self.model = resnext3d.resnet50(
+        #     num_classes=256,
+        #     shortcut_type='B',
+        #     cardinality=32,
+        #     sample_size=112,
+        #     sample_duration=16,
+        #     input_channels=frame_channels,
+        #     output_layers=['append'],
+        #     number_frames=num_frames)
+        
+        self.model = csn.csn101(num_classes=256, mode='ip')
+
+        # self.model = resnet3d.resnet101(num_classes=256)
 
 
         self.conv2d_bbox = nn.Conv2d(in_channels=4, out_channels=64, kernel_size=1, padding=1)
@@ -62,14 +66,13 @@ class simpleABD(nn.Module):
         poses_features = poses_features.view(poses_features.size(0), -1)
         poses_features = self.linear_layer_pose(poses_features)
 
-
         combined_features = torch.cat((x, bbox_features, poses_features), dim=1)
         fused_features = self.dropout(self.relu(self.fc_fusion_1(combined_features)))
         fused_features = self.dropout(self.relu(self.fc_fusion_2(fused_features)))
 
-        event_predictions = self.fc_output_classes(fused_features)
+        event_predictions = self.relu(self.fc_output_classes(fused_features))
 
-        event_predictions = self.sigmoid(event_predictions)
+        # event_predictions = self.sigmoid(event_predictions)
 
         # max_prob_index = torch.argmax(event_predictions, dim=1)
         # selected_event_prediction = event_predictions[0][max_prob_index]
