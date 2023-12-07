@@ -13,11 +13,9 @@ import os
 event_list = {'Abandonment': 0,
               'Falldown': 1,
               'FireDetection': 2,
-              'Intrusion': 3,
-              'Loitering': 4,
-              'Violence': 5}
+              'Violence': 3}
 
-event_classes = [0, 1, 2, 3, 4, 5]
+event_classes = [0, 1, 2, 3]
 
 # Define hyperparameters
 num_epochs = 30
@@ -26,7 +24,7 @@ batch_size = 1
 
 # Define model parameters
 frame_channels = 3
-num_classes = 7
+num_classes = 4
 num_joints = 33
 fps = 30
 sample = 10
@@ -41,16 +39,16 @@ model = model.cuda()
 # summary.summary(model, [[30, 3, 224, 224], [30, 4, 1], [30, 3, 33]])
 
 # Define loss function and optimizer
-# criterion = nn.CrossEntropyLoss()
-criterion = MaxProbabilityLoss()
+criterion = nn.CrossEntropyLoss()
+# criterion = MaxProbabilityLoss()
 
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
 # Define dataset path
-train_path = '/home/lacie/Datasets/KISA/ver-3/train'
-val_path = '/home/lacie/Datasets/KISA/ver-3/val'
+train_path = '/home/lacie/Datasets/KISA/ver-3/4-class/train'
+val_path = '/home/lacie/Datasets/KISA/ver-3/4-class/val'
 
-results_path = './results_csn_3/'
+results_path = './results_csn_4_lcass_1/'
 
 if not os.path.exists(results_path):
     os.makedirs(results_path)
@@ -111,16 +109,12 @@ for epoch in range(num_epochs):
         train_gt.append(event_classes[torch.argmax(true_event_type, dim=1)])
         train_pred.append(event_classes[torch.argmax(event_predictions, dim=1)])
 
-        
+        predict_max = torch.max(event_predictions)
 
-        predict_max = torch.argmax(event_predictions)
+        event_predictions = event_predictions / predict_max
 
-        print(event_predictions[predict_max])
-
-        event_predictions = event_predictions / event_predictions[predict_max]
-
-        print(event_predictions)
-        print(true_event_type)
+        # print(event_predictions)
+        # print(true_event_type)
 
         # Compute loss
         loss = criterion(event_predictions, true_event_type)
