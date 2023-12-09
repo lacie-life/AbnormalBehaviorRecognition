@@ -3,7 +3,7 @@ import xml.etree.ElementTree as ET
 from func import XMLInfo, ILDetector, SimpleABDetector
 import os
 
-data_folder_path = "/home/lacie/Datasets/KISA/train/Loitering"
+data_folder_path = "/home/lacie/Datasets/KISA/train/Falldown"
 output_folder_path = "/home/lacie/Datasets/KISA/results/output"
 
 def get_video_infor(data_folder_path, output_folder_path):
@@ -16,7 +16,7 @@ def get_video_infor(data_folder_path, output_folder_path):
 
 
 if __name__ == "__main__":
-    video_infor = get_video_infor(data_folder_path)
+    video_infor = get_video_infor(data_folder_path, output_folder_path)
     for infor in video_infor:
         print(infor)
         if infor["abnormal_type"] is not None:
@@ -25,4 +25,5 @@ if __name__ == "__main__":
         else:
             detector = SimpleABDetector(infor)
             detector.process_video()
+
 

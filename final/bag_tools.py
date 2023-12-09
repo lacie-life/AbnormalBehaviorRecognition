@@ -64,7 +64,7 @@ def split_bag_persons(centers, labels):
 #     return dist, ind
 
 
-class SimpleTracker:
+class SimpleBagTracker:
 
     def __init__(self, self_association_thres, bag_person_thres):
         # type: (float, float) -> None
@@ -314,7 +314,7 @@ class AbandonmentDetector(object):
         self.instance_mode = instance_mode
 
         self.parallel = parallel
-        self.tracker = SimpleTracker(150, 200)
+        self.tracker = SimpleBagTracker(150, 200)
         if parallel:
             num_gpu = torch.cuda.device_count()
             self.predictor = AsyncPredictor(cfg, num_gpus=num_gpu)

@@ -7,7 +7,7 @@ from datetime import timedelta
 from pose_estimation_tools import KeyPoints
 from fire_tools import FireDetection
 from bag_tools import AbandonmentDetector
-
+from simple_tracker import SimpleTracker
 
 class XMLInfo:
     def __init__(self, xml_path, output_folder_path):
@@ -210,6 +210,7 @@ class SimpleABDetector:
         self.event_end_time = None
         self.event_type = None
         self.draw = True
+        self.tracker = SimpleTracker()
 
     def detect_human(self, frame):
         objects = self.model(frame).xyxy[0]
@@ -238,9 +239,9 @@ class SimpleABDetector:
         gray = cv2.GaussianBlur(gray, (100, 100), 0)
         (minVal, maxVal, minLoc, maxLoc) = cv2.minMaxLoc(gray)
 
-    def process_video(self, video):
+    def process_video(self):
 
-        cap = cv2.VideoCapture(video)
+        cap = cv2.VideoCapture(self.data_infor["video_path"])
         video_name = self.data_infor["video_path"].split("/")[-1]
         video_name = video_name.replace(".mp4", "")
 
@@ -261,6 +262,9 @@ class SimpleABDetector:
         results = None
 
         previous_frame = []
+        previous_data = {}
+
+        objects = []
 
         while cap.isOpened():
             ret, frame = cap.read()
@@ -269,28 +273,69 @@ class SimpleABDetector:
 
             if frame_index % step_size == 0:
 
-                # Detect human
-                human_boxes, conf = self.detect_human(frame)
-                human_poses = []
-
-                for box in human_boxes:
-                    human_poses.append(self.pose_model.detectPoints(frame, box))
-
                 # Detect fire
                 fire_frame, isFire, prob = self.detect_fire(frame)
 
-                if self.event_start_time is None:
+                if self.event_start_time is None and self.event_type is None:
                     if isFire != '0':
                         results = fire_frame
                         self.event_start_time = frame_index
                         self.event_type = 'Fire Detected'
 
+                # Detect human
+                human_boxes, conf = self.detect_human(frame)
+                human_poses = []
+                for box in human_boxes:
+                    human_poses.append(self.pose_model.detectPoints(frame, box))
+
+                # Store previous objects
+                previous_obj = objects
+                # Update tracker
+                objects = self.tracker.update(human_boxes)
+                # Calculate distance between previous and current objects
+                obj_diff = 0.0
+                for (obj, centroid) in objects:
+                    for (prev_obj, prev_centroid) in previous_obj:
+                        if obj == prev_obj:
+                            obj_diff += np.linalg.norm(centroid - prev_centroid)
 
                 if len(previous_frame) == 10:
                     previous_frame = previous_frame[1:]
+                    previous_data['human_boxes'] = previous_data['human_boxes'][1:]
+                    previous_data['human_poses'] = previous_data['human_poses'][1:]
+                    previous_data['objects'] = previous_data['objects'][1:]
+                    previous_data['obj_diff'] = previous_data['obj_diff'][1:]
+
+                # Check violence and fall down
+                if self.event_start_time is None and self.event_type is None:
+                    total_diff = 0.0
+                    for i in range(len(previous_frame)):
+                        total_diff += previous_data['obj_diff'][i]
+
+                    if total_diff > 100:
+                        results = frame
+                        self.event_start_time = frame_index
+                        self.event_type = 'Violence Detected'
+                    if total_diff < 10:
+                        results = frame
+                        self.event_start_time = frame_index
+                        self.event_type = 'Fall Down Detected'
+
                 previous_frame.append(frame)
+                previous_data['human_boxes'].append(human_boxes)
+                previous_data['human_poses'].append(human_poses)
+                previous_data['objects'].append(objects)
+                previous_data['obj_diff'].append(obj_diff)
 
                 if self.draw:
+                    cv2.putText(frame, f"Frame: {frame_index}", (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+                    if self.event_start_time is not None:
+                        cv2.putText(frame, f"Event: {self.event_type}", (10, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255),
+                                2)
+                    else:
+                        cv2.putText(frame, f"Event: Normal", (10, 100), cv2.FONT_HERSHEY_SIMPLEX, 1,
+                                    (0, 0, 255),
+                                    2)
                     for obj in human_boxes:
                         bbox = [int(obj[0]), int(obj[1]), int(obj[2]), int(obj[3])]
                         cv2.rectangle(frame, (bbox[0], bbox[1]), (bbox[2], bbox[3]), (0, 255, 0), 2)
@@ -304,3 +349,4 @@ class SimpleABDetector:
         cap.release()
         out.release()
         cv2.destroyAllWindows()
+
