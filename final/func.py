@@ -1,13 +1,12 @@
 import xml.etree.ElementTree as ET
 import time
 import torch
-from torchvision.models.detection import fasterrcnn_resnet50_fpn
-from torchvision.transforms import functional as F
 import cv2
 import numpy as np
 from datetime import timedelta
-from pose_estimation_tools import KeyPoints, FeatureExtractor
+from pose_estimation_tools import KeyPoints
 from fire_tools import FireDetection
+from bag_tools import AbandonmentDetector
 
 
 class XMLInfo:
@@ -206,13 +205,16 @@ class SimpleABDetector:
         self.abnormal_detections = {}
         self.fire_model = FireDetection("./fire_model.pt")
         self.pose_model = KeyPoints()
+        self.bag_model = AbandonmentDetector()
         self.event_start_time = None
         self.event_end_time = None
         self.event_type = None
+        self.draw = True
 
     def detect_human(self, frame):
         objects = self.model(frame).xyxy[0]
         humanObjects = []
+        conf = []
         tmpBB = []
 
         for obj in objects:
@@ -222,8 +224,9 @@ class SimpleABDetector:
         for obj in humanObjects:
             bbox = [int(obj[0]), int(obj[1]), int(obj[2]), int(obj[3])]
             tmpBB.append(bbox)
+            conf.append(obj[4])
 
-        return tmpBB
+        return tmpBB, conf
 
     def detect_fire(self, frame):
         return self.fire_model.detect(frame)
@@ -246,8 +249,8 @@ class SimpleABDetector:
 
         size = (frame_width, frame_height)
         out = cv2.VideoWriter(self.data_infor['output'] + f'/{video_name}_output.avi',
-                                 cv2.VideoWriter_fourcc(*'MJPG'),
-                                 10, size)
+                              cv2.VideoWriter_fourcc(*'MJPG'),
+                              10, size)
         video_fps = round(cap.get(cv2.CAP_PROP_FPS))
         if video_fps != 30.0:
             return "Video is not 30 FPS"
@@ -257,6 +260,8 @@ class SimpleABDetector:
 
         results = None
 
+        previous_frame = []
+
         while cap.isOpened():
             ret, frame = cap.read()
             if ret is False:
@@ -265,8 +270,9 @@ class SimpleABDetector:
             if frame_index % step_size == 0:
 
                 # Detect human
-                human_boxes = self.detect_human(frame)
+                human_boxes, conf = self.detect_human(frame)
                 human_poses = []
+
                 for box in human_boxes:
                     human_poses.append(self.pose_model.detectPoints(frame, box))
 
@@ -279,10 +285,22 @@ class SimpleABDetector:
                         self.event_start_time = frame_index
                         self.event_type = 'Fire Detected'
 
+
+                if len(previous_frame) == 10:
+                    previous_frame = previous_frame[1:]
+                previous_frame.append(frame)
+
+                if self.draw:
+                    for obj in human_boxes:
+                        bbox = [int(obj[0]), int(obj[1]), int(obj[2]), int(obj[3])]
+                        cv2.rectangle(frame, (bbox[0], bbox[1]), (bbox[2], bbox[3]), (0, 255, 0), 2)
+
+                    for pose in human_poses:
+                        for point in pose:
+                            cv2.circle(frame, (point[1], point[2]), 5, (255, 0, 0), cv2.FILLED)
+
                 out.write(results)
 
         cap.release()
         out.release()
         cv2.destroyAllWindows()
-
-
