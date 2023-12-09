@@ -6,12 +6,15 @@ from torchvision.transforms import functional as F
 import cv2
 import numpy as np
 from datetime import timedelta
+from pose_estimation_tools import KeyPoints, FeatureExtractor
+from fire_tools import FireDetection
 
 
 class XMLInfo:
-    def __init__(self, xml_path):
+    def __init__(self, xml_path, output_folder_path):
         self.tree = ET.parse(xml_path)
         self.root = self.tree.getroot()
+        self.output_path = output_folder_path
 
         self.numberArea = int(self.root.find(".//DetectionAreas").text)
 
@@ -53,6 +56,7 @@ class XMLInfo:
         data["areas"] = self.areas
         data["abnormal_area"] = self.abnormal_area
         data["abnormal_type"] = self.abnormal_type
+        data["output"] = self.output_path
         return data
 
 
@@ -72,9 +76,7 @@ class ILDetector:
     def detect_human(self, frame):
 
         objects = self.model(frame).xyxy[0]
-
         humanObjects = []
-
         tmpBB = []
 
         for obj in objects:
@@ -162,7 +164,7 @@ class ILDetector:
         frame_height = int(cap.get(4))
 
         size = (frame_width, frame_height)
-        result = cv2.VideoWriter(f'{video_name}_output.avi',
+        result = cv2.VideoWriter(self.data_infor['output'] + f'/{video_name}_output.avi',
                                  cv2.VideoWriter_fourcc(*'MJPG'),
                                  10, size)
 
@@ -198,40 +200,89 @@ class ILDetector:
 class SimpleABDetector:
     def __init__(self, data_infor):
         self.data_infor = data_infor
-        self.model = fasterrcnn_resnet50_fpn(pretrained=True)
+        self.model = torch.hub.load('ultralytics/yolov5', 'yolov5x6', pretrained=True)
+        self.model.cuda()
         self.model.eval()
         self.abnormal_detections = {}
+        self.fire_model = FireDetection("./fire_model.pt")
+        self.pose_model = KeyPoints()
+        self.event_start_time = None
+        self.event_end_time = None
+        self.event_type = None
 
     def detect_human(self, frame):
-        frame = F.to_tensor(frame)
-        frame = frame.unsqueeze(0)
-        predictions = self.model(frame)
-        labels = predictions[0]['labels'].numpy()
-        boxes = predictions[0]['boxes'].detach().numpy()
-        scores = predictions[0]['scores'].detach().numpy()
-        human_boxes = boxes[labels == 1]
-        human_scores = scores[labels == 1]
-        human_boxes = human_boxes[human_scores > 0.5]
+        objects = self.model(frame).xyxy[0]
+        humanObjects = []
+        tmpBB = []
 
-        # Draw bounding boxes
-        for box in human_boxes:
-            cv2.rectangle(frame, (box[0], box[1]), (box[2], box[3]), (0, 255, 0), 2)
+        for obj in objects:
+            if obj[5] == 0:
+                humanObjects.append(obj)
 
-        return frame
+        for obj in humanObjects:
+            bbox = [int(obj[0]), int(obj[1]), int(obj[2]), int(obj[3])]
+            tmpBB.append(bbox)
 
-    def process_video(self):
-        cap = cv2.VideoCapture(self.data_infor["video_path"])
+        return tmpBB
+
+    def detect_fire(self, frame):
+        return self.fire_model.detect(frame)
+
+    def check_fire(self, frame):
+        orig = frame.copy()
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        (minVal, maxVal, minLoc, maxLoc) = cv2.minMaxLoc(gray)
+        gray = cv2.GaussianBlur(gray, (100, 100), 0)
+        (minVal, maxVal, minLoc, maxLoc) = cv2.minMaxLoc(gray)
+
+    def process_video(self, video):
+
+        cap = cv2.VideoCapture(video)
         video_name = self.data_infor["video_path"].split("/")[-1]
-        fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # or use 'XVID'
-        out = cv2.VideoWriter(f'{video_name}_output.mp4', fourcc, 20.0, (640, 480))
-        while True:
+        video_name = video_name.replace(".mp4", "")
+
+        frame_width = int(cap.get(3))
+        frame_height = int(cap.get(4))
+
+        size = (frame_width, frame_height)
+        out = cv2.VideoWriter(self.data_infor['output'] + f'/{video_name}_output.avi',
+                                 cv2.VideoWriter_fourcc(*'MJPG'),
+                                 10, size)
+        video_fps = round(cap.get(cv2.CAP_PROP_FPS))
+        if video_fps != 30.0:
+            return "Video is not 30 FPS"
+
+        frame_index = 0  # Frame Index
+        step_size = (video_fps // video_fps)
+
+        results = None
+
+        while cap.isOpened():
             ret, frame = cap.read()
-            if not ret:
+            if ret is False:
                 break
-            frame = self.detect_human(frame)
-            out.write(frame)
-        #     cv2.imshow('Video', frame)
-        #     if cv2.waitKey(1) & 0xFF == ord('q'):
-        #         break
+
+            if frame_index % step_size == 0:
+
+                # Detect human
+                human_boxes = self.detect_human(frame)
+                human_poses = []
+                for box in human_boxes:
+                    human_poses.append(self.pose_model.detectPoints(frame, box))
+
+                # Detect fire
+                fire_frame, isFire, prob = self.detect_fire(frame)
+
+                if self.event_start_time is None:
+                    if isFire != '0':
+                        results = fire_frame
+                        self.event_start_time = frame_index
+                        self.event_type = 'Fire Detected'
+
+                out.write(results)
+
         cap.release()
-        # cv2.destroyAllWindows()
+        out.release()
+        cv2.destroyAllWindows()
+
+

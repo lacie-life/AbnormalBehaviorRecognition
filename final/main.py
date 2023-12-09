@@ -4,13 +4,13 @@ from func import XMLInfo, ILDetector, SimpleABDetector
 import os
 
 data_folder_path = "/home/lacie/Datasets/KISA/train/Loitering"
+output_folder_path = "/home/lacie/Datasets/KISA/results/output"
 
-
-def get_video_infor(data_folder_path):
+def get_video_infor(data_folder_path, output_folder_path):
     xml_paths = [os.path.join(data_folder_path, file) for file in os.listdir(data_folder_path) if file.endswith(".xml")]
     video_infor = []
     for xml_path in xml_paths:
-        xml_info = XMLInfo(xml_path)
+        xml_info = XMLInfo(xml_path, output_folder_path)
         video_infor.append(xml_info.get_video_infor())
     return video_infor
 
