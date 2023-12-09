@@ -12,9 +12,7 @@ from tools.pose_estimation import PoseDetector
 event_list = {'Abandonment': 0,
               'Falldown': 1,
               'FireDetection': 2,
-              'Intrusion': 3,
-              'Loitering': 4,
-              'Violence': 5}
+              'Violence': 3}
 
 
 def time2second(time_string):
@@ -71,7 +69,7 @@ class simpleKISADataLoader(Dataset):
 
         event_label, start_time, duration = self.parse_xml(xml_path)
         print(event_label)
-        event_label_encode = torch.zeros(6)
+        event_label_encode = torch.zeros(4)
         event_label_encode[event_label] = 1.0
 
         start_time = torch.tensor([start_time])
