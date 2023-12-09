@@ -18,6 +18,7 @@ def get_video_infor(data_folder_path):
 if __name__ == "__main__":
     video_infor = get_video_infor(data_folder_path)
     for infor in video_infor:
+        print(infor)
         if infor["abnormal_type"] is not None:
             detector = ILDetector(infor)
             detector.process_video()
