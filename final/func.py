@@ -497,6 +497,8 @@ class SimpleABDetector:
                                         obj_diff += np.linalg.norm(centroid - prev_centroid)
                         previous_obj = objects.items()
 
+                    # TODO: Review all threshold and parameters
+                    # TODO: Update pose classification based on skeleton model
                     # Check Abandonment
                     if self.event_start_time is None and self.event_type is None:
                         check_aband = self.detect_aband(previous_data, frame, diff, background_score)
