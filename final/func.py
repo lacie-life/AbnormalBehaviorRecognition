@@ -183,6 +183,7 @@ class ILDetector:
         frame_height = int(cap.get(4))
 
         size = (frame_width, frame_height)
+        print(self.data_infor['output'] + f'/{video_name}_output.avi')
         result = cv2.VideoWriter(self.data_infor['output'] + f'/{video_name}_output.avi',
                                  cv2.VideoWriter_fourcc(*'MJPG'),
                                  10, size)
@@ -223,7 +224,7 @@ class SimpleABDetector:
         self.model.cuda()
         self.model.eval()
         self.abnormal_detections = {}
-        self.fire_model = FireDetection(model_path="./fire-flame.pt")
+        self.fire_model = FireDetection(model_path="/home/lacie/Github/AbnormalBehaviorRecognition/final/fire-flame.pt")
         self.pose_model = KeyPoints()
         # self.bag_model = AbandonmentDetector()
         self.event_start_time = None
@@ -269,6 +270,7 @@ class SimpleABDetector:
         frame_height = int(cap.get(4))
 
         size = (frame_width, frame_height)
+        print(self.data_infor['output'] + f'/{video_name}_output.avi')
         out = cv2.VideoWriter(self.data_infor['output'] + f'/{video_name}_output.avi',
                               cv2.VideoWriter_fourcc(*'MJPG'),
                               10, size)
@@ -289,7 +291,8 @@ class SimpleABDetector:
             'obj_diff': []
         }
 
-        objects = []
+        human_boxes = []
+        previous_obj = None
 
         while cap.isOpened():
             ret, frame = cap.read()
@@ -301,28 +304,33 @@ class SimpleABDetector:
                 # Detect fire
                 fire_frame, isFire, prob = self.detect_fire(frame)
 
-                if self.event_start_time is None and self.event_type is None:
-                    if isFire != '0':
-                        results = fire_frame
-                        self.event_start_time = frame_index
-                        self.event_type = 'Fire Detected'
+                # if self.event_start_time is None and self.event_type is None:
+                #     if isFire == '1' or isFire == '2':
+                #         self.event_start_time = frame_index
+                #         self.event_type = 'Fire Detected'
+
+                # Check Abandonment
 
                 # Detect human
                 human_boxes, conf = self.detect_human(frame)
                 human_poses = []
-                for box in human_boxes:
-                    human_poses.append(self.pose_model.detectPoints(frame, box))
+                if len(human_boxes) > 0:
+                    for box in human_boxes:
+                        human_poses.append(self.pose_model.detectPoints(frame, box))
 
-                # Store previous objects
-                previous_obj = objects
                 # Update tracker
                 objects = self.tracker.update(human_boxes)
                 # Calculate distance between previous and current objects
                 obj_diff = 0.0
-                for (obj, centroid) in objects:
-                    for (prev_obj, prev_centroid) in previous_obj:
-                        if obj == prev_obj:
-                            obj_diff += np.linalg.norm(centroid - prev_centroid)
+
+                if previous_obj is None:
+                    previous_obj = objects.items()
+                else:
+                    for (obj, centroid) in objects.items():
+                        for (prev_obj, prev_centroid) in previous_obj:
+                            if obj == prev_obj:
+                                obj_diff += np.linalg.norm(centroid - prev_centroid)
+                    previous_obj = objects.items()
 
                 if len(previous_data['frame']) == 10:
                     previous_data['frame'] = previous_data['frame'][1:]
@@ -334,14 +342,27 @@ class SimpleABDetector:
                 # Check violence and fall down
                 if self.event_start_time is None and self.event_type is None:
                     total_diff = 0.0
-                    for i in range(len(previous_data['frame'])):
-                        total_diff += previous_data['obj_diff'][i]
+                    box_check = False
+                    for box in range(len(previous_data['human_boxes'])):
+                        for obj in range(len(previous_data['human_boxes'][box])):
+                            if len(human_boxes) > 0 and len(previous_data['human_boxes'][box]) > 0:
+                                if previous_data['human_boxes'][box][obj] == human_boxes[obj]:
+                                    box_check = True
+                                else:
+                                    box_check = False
+                                    break
+                        if box_check:
+                            total_diff += previous_data['obj_diff'][box]
+                        else:
+                            break
+                    # for i in range(len(previous_data['frame'])):
+                    #     total_diff += previous_data['obj_diff'][i]
 
                     if total_diff > 100:
                         results = frame
                         self.event_start_time = frame_index
                         self.event_type = 'Violence Detected'
-                    if total_diff < 10:
+                    if total_diff < 10 and len(human_boxes) > 0 and len(previous_data['human_boxes']) > 0 and total_diff > 0:
                         results = frame
                         self.event_start_time = frame_index
                         self.event_type = 'Fall Down Detected'
@@ -369,11 +390,13 @@ class SimpleABDetector:
                         bbox = [int(obj[0]), int(obj[1]), int(obj[2]), int(obj[3])]
                         cv2.rectangle(frame, (bbox[0], bbox[1]), (bbox[2], bbox[3]), (0, 255, 0), 2)
 
-                    for pose in human_poses:
-                        for point in pose:
-                            cv2.circle(frame, (point[1], point[2]), 5, (255, 0, 0), cv2.FILLED)
+                    # print(human_poses)
+                    # for pose in human_poses:
+                    #     for point in pose:
+                    #         cv2.circle(frame, (point[1], point[2]), 5, (255, 0, 0), cv2.FILLED)
 
-                out.write(results)
+                out.write(frame)
+                cv2.waitKey(1)
 
         cap.release()
         out.release()

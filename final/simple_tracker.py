@@ -37,7 +37,7 @@ class SimpleTracker():
 		if len(rects) == 0:
 			# loop over any existing tracked objects and mark them
 			# as disappeared
-			for objectID in self.disappeared.keys():
+			for objectID in list(self.disappeared.keys()):
 				self.disappeared[objectID] += 1
 
 				# if we have reached a maximum number of consecutive

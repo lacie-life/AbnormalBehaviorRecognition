@@ -1,4 +1,4 @@
-from torchfusion_utils.models import load_model,save_model
+from torchfusion_utils.models import load_model, save_model
 import torch
 from torchvision import datasets, transforms, models
 import numpy as np
@@ -13,7 +13,7 @@ class FireDetection:
         self.model.eval()
         self.model = self.model.cuda()
 
-        self.transformer = transforms.Compose([transforms.Resize(225),
+        self.transformer = transforms.Compose([transforms.Resize(size=(224, 224)),
                                   transforms.CenterCrop(224),
                                   transforms.ToTensor(),
                                   transforms.Normalize([0.5, 0.5, 0.5],
@@ -57,7 +57,7 @@ class FireDetection:
         return orig, class_no, co
 
 if __name__ == "__main__":
-    model_path = "/home/lacie/Github/AbnormalBehaviorRecognition/final/fire-flame.pt"
+    model_path = "/home/lacie/Github/AbnormalBehaviorRecognition/final/model_final.pth"
     fire_detection = FireDetection(model_path=model_path)
 
     video_path = "/home/lacie/Datasets/KISA/train/FireDetection/C002100_006.mp4"

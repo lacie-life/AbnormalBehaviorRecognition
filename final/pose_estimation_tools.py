@@ -8,10 +8,12 @@ import openpifpaf
 class KeyPoints:
 
     def __init__(self):
-        self.predictor = None
+        self.predictor = self.model()
 
     def model(self, checkpoint="shufflenetv2k16"):
-        self.predictor = openpifpaf.Predictor(checkpoint=checkpoint)
+        predictor = openpifpaf.Predictor(checkpoint=checkpoint)
+
+        return predictor
 
     def detectPoints(self, frame, box):
         crop = frame[box[1]:box[3], box[0]:box[2]]
