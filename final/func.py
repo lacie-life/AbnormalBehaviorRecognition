@@ -310,20 +310,39 @@ class SimpleABDetector:
                     break
             # print(diff)
             if not human and diff > background_score + background_score * 0.2:
-                print("Fire Detected")
-                return 'start'
+                # Re check fire
+                count = 0
+                for frame in previous_data['frame']:
+                    fire_frame, isFire, prob = self.detect_fire(frame)
+                    if isFire == '1' or isFire == '2':
+                        count += 1
+
+                if count > 10:
+                    print("Fire Detected")
+                    return 'start'
         else:
             human = False
             for bb in previous_data['human_boxes']:
                 if len(bb) > 0:
                     human = True
                     break
-            # print(diff)
             if not human and diff < background_score + background_score * 0.1:
                 print("Fire Detected End")
                 return 'end'
 
     def check_fall(self, previous_data, frame, diff, background_score, started=False):
+        # Check by pose
+        total_pose = []
+        for pose in range(len(previous_data['pose_type'])):
+            for tp in previous_data['pose_type'][pose]:
+                if tp == 'unknown':
+                    continue
+                total_pose.append(tp)
+
+        f_count = total_pose.count('fighting')
+        s_count = total_pose.count('standing')
+        fa_count = total_pose.count('fall down')
+
         if not started:
             human = False
             for bb in previous_data['human_boxes']:
@@ -331,7 +350,8 @@ class SimpleABDetector:
                     human = True
                     break
             # print(diff)
-            if human and diff < background_score + background_score * 0.2:
+
+            if human and diff < background_score + background_score * 0.2 and fa_count > 30:
                 print("Fall Detected")
                 return 'start'
         else:
@@ -341,8 +361,43 @@ class SimpleABDetector:
                     human = True
                     break
             # print(diff)
-            if human and diff > background_score + background_score * 0.5:
+            if human and diff > background_score + background_score * 0.5 and s_count > 10:
                 print("Fall Detected End")
+                return 'end'
+
+    def check_fight(self, previous_data, frame, diff, background_score, started=False):
+        # Check by pose
+        total_pose = []
+        for pose in range(len(previous_data['pose_type'])):
+            for tp in previous_data['pose_type'][pose]:
+                if tp == 'unknown':
+                    continue
+                total_pose.append(tp)
+
+        f_count = total_pose.count('fighting')
+        s_count = total_pose.count('standing')
+        fa_count = total_pose.count('fall down')
+
+        if not started:
+            human = False
+            for bb in previous_data['human_boxes']:
+                if len(bb) > 0:
+                    human = True
+                    break
+            # print(diff)
+
+            if human and diff < background_score + background_score * 0.2 and f_count > 30:
+                print("Fight Detected")
+                return 'start'
+        else:
+            human = False
+            for bb in previous_data['human_boxes']:
+                if len(bb) > 0:
+                    human = True
+                    break
+            # print(diff)
+            if human and diff > background_score + background_score * 0.5 and s_count > 10:
+                print("Fight Detected End")
                 return 'end'
 
     def process_video(self):
@@ -391,6 +446,8 @@ class SimpleABDetector:
         background_score = 0.0
         tmp = 0
 
+        warm_up = 0
+
         while cap.isOpened():
             ret, frame = cap.read()
             if ret is False:
@@ -407,6 +464,7 @@ class SimpleABDetector:
                 if len(human_boxes) > 0 and start_detect is False:
                     start_detect = True
                     r_conf = 0.3
+                    warm_up = frame_index
 
                 if self.window_size * 1.5 < frame_index < 600 + self.window_size * 1.5:
                     background_score += diff
@@ -414,15 +472,7 @@ class SimpleABDetector:
                 if frame_index == 600 + self.window_size * 1.5:
                     background_score /= tmp
 
-                # Detect fire
-                # fire_frame, isFire, prob = self.detect_fire(frame)
-
-                # if self.event_start_time is None and self.event_type is None:
-                #     if isFire == '1' or isFire == '2':
-                #         self.event_start_time = frame_index
-                #         self.event_type = 'Fire Detected'
-
-                if start_detect:
+                if start_detect is True and frame_index > warm_up + (2*video_fps):
 
                     # Get human bounding box and pose
                     human_poses = []
@@ -433,6 +483,19 @@ class SimpleABDetector:
                             human_poses.append(pose)
                             pose_types.append(tp)
                             # print(tp)
+                        # Update tracker
+                        objects = self.tracker.update(human_boxes)
+                        # Calculate distance between previous and current objects
+                        obj_diff = 0.0
+
+                        if previous_obj is None:
+                            previous_obj = objects.items()
+                        else:
+                            for (obj, centroid) in objects.items():
+                                for (prev_obj, prev_centroid) in previous_obj:
+                                    if obj == prev_obj:
+                                        obj_diff += np.linalg.norm(centroid - prev_centroid)
+                        previous_obj = objects.items()
 
                     # Check Abandonment
                     if self.event_start_time is None and self.event_type is None:
@@ -465,87 +528,17 @@ class SimpleABDetector:
                             self.event_end_time = frame_index
                             self.event_type = 'Normal'
 
-                    # # Check violence
-                    # if self.event_start_time is None and self.event_type is None:
-                    #     check_fight = self.check_fight(previous_data, frame, diff)
-                    #     if check_fight:
-                    #         self.event_start_time = frame_index
-                    #         self.event_type = 'Fight Detected'
-                    # elif self.event_start_time is not None and self.event_type == 'Fight Detected':
-                    #     check_fight = self.check_fight(previous_data, frame, diff)
-                    #     if not check_fight:
-                    #         self.event_end_time = frame_index
-                    #         self.event_type = None
-
-                    # Check by diff
-                    if len(human_boxes) > 0:
-                        for box in human_boxes:
-                            pose, tp = self.pose_model.detectPoints(frame, box)
-                            human_poses.append(pose)
-                            pose_types.append(tp)
-                            print(tp)
-
-                        # Update tracker
-                        objects = self.tracker.update(human_boxes)
-                        # Calculate distance between previous and current objects
-                        obj_diff = 0.0
-
-                        if previous_obj is None:
-                            previous_obj = objects.items()
-                        else:
-                            for (obj, centroid) in objects.items():
-                                for (prev_obj, prev_centroid) in previous_obj:
-                                    if obj == prev_obj:
-                                        obj_diff += np.linalg.norm(centroid - prev_centroid)
-                        previous_obj = objects.items()
-
-                    # # Check violence and fall down
-                    #
-                    # # Check by diff
-                    # total_diff = 0.0
-                    # box_check = False
-                    # for box in range(len(previous_data['human_boxes'])):
-                    #     if len(previous_data['human_boxes'][box]) > 0:
-                    #         total_diff += previous_data['obj_diff'][box]
-                    #
-                    # print(total_diff)
-                    # if self.event_start_time is None and self.event_type is None:
-                    #     if total_diff > 100:
-                    #         self.event_start_time = frame_index
-                    #         self.event_type = 'Violence Detected'
-                    #     if 10 > total_diff > 0:
-                    #         self.event_start_time = frame_index
-                    #         self.event_type = 'Fall Down Detected'
-                    #
-                    # # Check by pose
-                    # total_pose = []
-                    # for pose in range(len(previous_data['pose_type'])):
-                    #     for tp in previous_data['pose_type'][pose]:
-                    #         if tp == 'unknown':
-                    #             continue
-                    #         total_pose.append(tp)
-                    #
-                    # f_count = total_pose.count('fighting')
-                    # s_count = total_pose.count('standing')
-                    # l_count = total_pose.count('fall down')
-                    #
-                    # if self.event_start_time is None and self.event_type is None:
-                    #     if f_count > 30:
-                    #         self.event_start_time = frame_index
-                    #         self.event_type = 'Violence Detected'
-                    #     elif l_count > 30:
-                    #         self.event_start_time = frame_index
-                    #         self.event_type = 'Fall Down Detected'
-                    #
-                    # elif self.event_start_time is not None:
-                    #     if self.event_type == 'Violence Detected':
-                    #         if f_count == 0:
-                    #             self.event_end_time = frame_index
-                    #             self.event_type = None
-                    #     elif self.event_type == 'Fall Down Detected':
-                    #         if s_count > 10:
-                    #             self.event_end_time = frame_index
-                    #             self.event_type = None
+                    # Check violence
+                    if self.event_start_time is None and self.event_type is None:
+                        check_fight = self.check_fight(previous_data, frame, diff, background_score)
+                        if check_fight:
+                            self.event_start_time = frame_index
+                            self.event_type = 'Fight Detected'
+                    elif self.event_start_time is not None and self.event_type == 'Fight Detected':
+                        check_fight = self.check_fight(previous_data, frame, diff, background_score, started=True)
+                        if not check_fight:
+                            self.event_end_time = frame_index
+                            self.event_type = 'Normal'
 
                 if len(previous_data['frame']) == 60:
                     previous_data['frame'] = previous_data['frame'][1:]
