@@ -360,12 +360,6 @@ class AbandonmentDetector(object):
                 predictions = predictions["instances"].to(self.cpu_device)
                 tracker.update(boxes=predictions.pred_boxes.tensor.numpy(), labels=predictions.pred_classes.numpy())
 
-                if SAVE_PREDICTIONS:
-                    SAVED_PREDICTIONS.append(predictions)
-                    if len(SAVED_PREDICTIONS) == 100:
-                        with open('predictions.pkl', 'wb') as fp:
-                            pickle.dump(SAVED_PREDICTIONS, fp)
-                            print('Saving done!')
 
                 vis_frame = draw_instance_predictions(video_visualizer, frame, predictions, tracker)
 
@@ -383,3 +377,6 @@ class AbandonmentDetector(object):
         for frame in frame_gen:
             yield process_predictions(frame, self.predictor(frame), self.tracker)
 
+
+if __name__ == "__main__":
+    print("Bag Tools")

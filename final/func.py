@@ -8,6 +8,7 @@ from pose_estimation_tools import KeyPoints
 from fire_tools import FireDetection
 from bag_tools import AbandonmentDetector
 from simple_tracker import SimpleTracker
+from ultralytics import YOLO
 
 from detectron2.data.datasets import register_coco_instances
 from detectron2.config import get_cfg
@@ -82,10 +83,7 @@ class XMLInfo:
 class ILDetector:
     def __init__(self, data_infor):
         self.data_infor = data_infor
-        self.model = torch.hub.load('ultralytics/yolov5', 'yolov5x6', pretrained=True)
-
-        self.model.cuda()
-        self.model.eval()
+        self.model = YOLO('/home/lacie/Github/AbnormalBehaviorRecognition/final/yolov8x.pt')
         self.abnormal_detections = {}
         self.abnormal_time = {}
         self.event_start_time = None
@@ -93,20 +91,26 @@ class ILDetector:
         self.loitering_offset = 0
 
     def detect_human(self, frame):
+        # objects = self.model(frame).xyxy[0]
+        objects = self.model.predict(frame, classes=[0])
 
-        objects = self.model(frame).xyxy[0]
-        humanObjects = []
+        humanObjects = objects[0].boxes.data
+
+        # print(humanObjects)
+
         tmpBB = []
-
-        for obj in objects:
-            if obj[5] == 0:
-                humanObjects.append(obj)
+        conf = []
+        tmp = []
 
         for obj in humanObjects:
+            if obj[5] == 0:
+                tmp.append(obj)
+
+        for obj in tmp:
             bbox = [int(obj[0]), int(obj[1]), int(obj[2]), int(obj[3])]
             tmpBB.append(bbox)
 
-        return tmpBB
+        return tmpBB, conf
 
     def _is_in_abnormal_area(self, box, abnormal_area):
         area = np.array(abnormal_area)
@@ -220,9 +224,7 @@ class ILDetector:
 class SimpleABDetector:
     def __init__(self, data_infor):
         self.data_infor = data_infor
-        self.model = torch.hub.load('ultralytics/yolov5', 'yolov5x6', pretrained=True)
-        self.model.cuda()
-        self.model.eval()
+        self.model = YOLO('/home/lacie/Github/AbnormalBehaviorRecognition/final/yolov8x.pt')
         self.abnormal_detections = {}
         self.fire_model = FireDetection(model_path="/home/lacie/Github/AbnormalBehaviorRecognition/final/fire-flame.pt")
         self.pose_model = KeyPoints()
@@ -232,26 +234,45 @@ class SimpleABDetector:
         self.event_type = None
         self.draw = True
         self.tracker = SimpleTracker()
+        self.pre_event = None
 
     def detect_human(self, frame):
-        objects = self.model(frame).xyxy[0]
-        humanObjects = []
-        conf = []
-        tmpBB = []
+        # objects = self.model(frame).xyxy[0]
+        objects = self.model.predict(frame, classes=[0])
 
-        for obj in objects:
-            if obj[5] == 0:
-                humanObjects.append(obj)
+        humanObjects = objects[0].boxes.data
+
+        # print(humanObjects)
+
+        tmpBB = []
+        conf = []
+        tmp = []
 
         for obj in humanObjects:
+            if obj[5] == 0:
+                tmp.append(obj)
+
+        for obj in tmp:
             bbox = [int(obj[0]), int(obj[1]), int(obj[2]), int(obj[3])]
             tmpBB.append(bbox)
-            conf.append(obj[4])
 
         return tmpBB, conf
 
     def detect_fire(self, frame):
         return self.fire_model.detect(frame)
+
+    def calculate_diff_frame(self, set_frames, frame):
+
+        start_frame = set_frames[0]
+
+        # subtract 2 image
+        diff = cv2.absdiff(start_frame, frame)
+
+        return diff
+
+    def detect_aband(self, set_frames, frame):
+
+        return True
 
     def check_fire(self, frame):
         orig = frame.copy()
@@ -287,6 +308,7 @@ class SimpleABDetector:
             'frame': [],
             'human_boxes': [],
             'human_poses': [],
+            'pose_type': [],
             'objects': [],
             'obj_diff': []
         }
@@ -296,6 +318,8 @@ class SimpleABDetector:
         objects = None
         obj_diff = 0.0
 
+        start_detect = False
+
         while cap.isOpened():
             ret, frame = cap.read()
             if ret is False:
@@ -303,88 +327,142 @@ class SimpleABDetector:
 
             if frame_index % step_size == 0:
 
+                oringinal_frame = frame.copy()
+
+                human_boxes, conf = self.detect_human(frame)
+
+                if len(human_boxes) > 0 and start_detect is False:
+                    start_detect = True
+
                 # Detect fire
-                fire_frame, isFire, prob = self.detect_fire(frame)
+                # fire_frame, isFire, prob = self.detect_fire(frame)
 
                 # if self.event_start_time is None and self.event_type is None:
                 #     if isFire == '1' or isFire == '2':
                 #         self.event_start_time = frame_index
                 #         self.event_type = 'Fire Detected'
 
-                # Check Abandonment
+                if start_detect:
 
-                # Detect human
-                human_boxes, conf = self.detect_human(frame)
-                human_poses = []
-                if len(human_boxes) > 0:
-                    for box in human_boxes:
-                        human_poses.append(self.pose_model.detectPoints(frame, box))
+                    diff = self.calculate_diff_frame(previous_data['frame'], frame)
 
-                    # Update tracker
-                    objects = self.tracker.update(human_boxes)
-                    # Calculate distance between previous and current objects
-                    obj_diff = 0.0
+                    # Check Abandonment
+                    if self.event_start_time is None and self.event_type is None:
+                        check_aban = self.detect_aband(previous_data['frame'], frame)
 
-                    if previous_obj is None:
+
+                    human_poses = []
+                    pose_types = []
+                    if len(human_boxes) > 0:
+                        for box in human_boxes:
+                            pose, tp = self.pose_model.detectPoints(frame, box)
+                            human_poses.append(pose)
+                            pose_types.append(tp)
+                            print(tp)
+
+                        # Update tracker
+                        objects = self.tracker.update(human_boxes)
+                        # Calculate distance between previous and current objects
+                        obj_diff = 0.0
+
+                        if previous_obj is None:
+                            previous_obj = objects.items()
+                        else:
+                            for (obj, centroid) in objects.items():
+                                for (prev_obj, prev_centroid) in previous_obj:
+                                    if obj == prev_obj:
+                                        obj_diff += np.linalg.norm(centroid - prev_centroid)
                         previous_obj = objects.items()
-                    else:
-                        for (obj, centroid) in objects.items():
-                            for (prev_obj, prev_centroid) in previous_obj:
-                                if obj == prev_obj:
-                                    obj_diff += np.linalg.norm(centroid - prev_centroid)
-                    previous_obj = objects.items()
 
-                if len(previous_data['frame']) == 30:
-                    previous_data['frame'] = previous_data['frame'][1:]
-                    previous_data['human_boxes'] = previous_data['human_boxes'][1:]
-                    previous_data['human_poses'] = previous_data['human_poses'][1:]
-                    previous_data['objects'] = previous_data['objects'][1:]
-                    previous_data['obj_diff'] = previous_data['obj_diff'][1:]
+                    if len(previous_data['frame']) == 30:
+                        previous_data['frame'] = previous_data['frame'][1:]
+                        previous_data['human_boxes'] = previous_data['human_boxes'][1:]
+                        previous_data['human_poses'] = previous_data['human_poses'][1:]
+                        previous_data['pose_type'] = previous_data['pose_type'][1:]
+                        previous_data['objects'] = previous_data['objects'][1:]
+                        previous_data['obj_diff'] = previous_data['obj_diff'][1:]
 
-                # Check violence and fall down
-                if self.event_start_time is None and self.event_type is None:
+                    # Check violence and fall down
+
+                    # Check by diff
                     total_diff = 0.0
                     box_check = False
                     for box in range(len(previous_data['human_boxes'])):
                         if len(previous_data['human_boxes'][box]) > 0:
                             total_diff += previous_data['obj_diff'][box]
 
-                    if total_diff > 100:
-                        self.event_start_time = frame_index
-                        self.event_type = 'Violence Detected'
-                    if 10 > total_diff > 0:
-                        self.event_start_time = frame_index
-                        self.event_type = 'Fall Down Detected'
+                    print(total_diff)
+                    if self.event_start_time is None and self.event_type is None:
+                        if total_diff > 100:
+                            self.event_start_time = frame_index
+                            self.event_type = 'Violence Detected'
+                        if 10 > total_diff > 0:
+                            self.event_start_time = frame_index
+                            self.event_type = 'Fall Down Detected'
 
-                previous_data['frame'].append(frame)
-                previous_data['human_boxes'].append(human_boxes)
-                previous_data['human_poses'].append(human_poses)
-                previous_data['objects'].append(objects)
-                previous_data['obj_diff'].append(obj_diff)
+                    # Check by pose
+                    total_pose = []
+                    for pose in range(len(previous_data['pose_type'])):
+                        for tp in previous_data['pose_type'][pose]:
+                            if tp == 'unknown':
+                                continue
+                            total_pose.append(tp)
 
-                if frame_index % 100 == 0:
-                    print(frame_index)
-                frame_index += 1
+                    f_count = total_pose.count('fighting')
+                    s_count = total_pose.count('standing')
+                    l_count = total_pose.count('fall down')
 
-                if self.draw:
-                    cv2.putText(frame, f"Frame: {frame_index}", (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-                    if self.event_start_time is not None:
-                        cv2.putText(frame, f"Event: {self.event_type}", (10, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255),
-                                2)
-                    else:
-                        cv2.putText(frame, f"Event: Normal", (10, 100), cv2.FONT_HERSHEY_SIMPLEX, 1,
-                                    (0, 0, 255),
+                    if self.event_start_time is None and self.event_type is None:
+                        if f_count > 30:
+                            self.event_start_time = frame_index
+                            self.event_type = 'Violence Detected'
+                        elif l_count > 30:
+                            self.event_start_time = frame_index
+                            self.event_type = 'Fall Down Detected'
+
+                    elif self.event_start_time is not None:
+                        if self.event_type == 'Violence Detected':
+                            if f_count == 0:
+                                self.event_end_time = frame_index
+                                self.event_type = None
+                        elif self.event_type == 'Fall Down Detected':
+                            if s_count > 10:
+                                self.event_end_time = frame_index
+                                self.event_type = None
+
+                    previous_data['frame'].append(frame)
+                    previous_data['human_boxes'].append(human_boxes)
+                    previous_data['human_poses'].append(human_poses)
+                    previous_data['pose_type'].append(pose_types)
+                    previous_data['objects'].append(objects)
+                    previous_data['obj_diff'].append(obj_diff)
+
+                    if frame_index % 100 == 0:
+                        print(frame_index)
+                    frame_index += 1
+
+                    if self.draw:
+                        cv2.putText(oringinal_frame, f"Frame: {frame_index}", (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+                        if self.event_start_time is not None:
+                            cv2.putText(oringinal_frame, f"Event: {self.event_type}", (10, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255),
                                     2)
-                    for obj in human_boxes:
-                        bbox = [int(obj[0]), int(obj[1]), int(obj[2]), int(obj[3])]
-                        cv2.rectangle(frame, (bbox[0], bbox[1]), (bbox[2], bbox[3]), (0, 255, 0), 2)
+                        elif self.event_start_time is None:
+                            cv2.putText(oringinal_frame, f"Event: Normal", (10, 100), cv2.FONT_HERSHEY_SIMPLEX, 1,
+                                        (0, 0, 255),
+                                        2)
+                        for obj in human_boxes:
+                            bbox = [int(obj[0]), int(obj[1]), int(obj[2]), int(obj[3])]
+                            cv2.rectangle(oringinal_frame, (bbox[0], bbox[1]), (bbox[2], bbox[3]), (0, 255, 0), 2)
 
-                    # print(human_poses)
-                    # for pose in human_poses:
-                    #     for point in pose:
-                    #         cv2.circle(frame, (point[1], point[2]), 5, (255, 0, 0), cv2.FILLED)
+                        # print(human_poses)
+                        for pose in human_poses:
+                            for point in pose:
+                                print(point)
+                                if point[0] < 0 or point[1] < 0:
+                                    continue
+                                cv2.circle(oringinal_frame, (int(point[1]), int(point[2])), 5, (255, 0, 0), cv2.FILLED)
 
-                out.write(frame)
+                out.write(oringinal_frame)
                 cv2.waitKey(1)
 
         cap.release()
