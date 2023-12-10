@@ -9,6 +9,26 @@ from fire_tools import FireDetection
 from bag_tools import AbandonmentDetector
 from simple_tracker import SimpleTracker
 
+from detectron2.data.datasets import register_coco_instances
+from detectron2.config import get_cfg
+from detectron2.data.detection_utils import read_image
+from detectron2.utils.logger import setup_logger
+from detectron2 import model_zoo
+
+def setup_cfg(args):
+    # load config from file and command-line arguments
+    cfg = get_cfg()
+    cfg.merge_from_file(model_zoo.get_config_file("COCO-Detection/faster_rcnn_R_101_FPN_3x.yaml"))
+    cfg.merge_from_list(args.opts)
+    # Set score_threshold for builtin models
+    cfg.MODEL.RETINANET.SCORE_THRESH_TEST = args.confidence_threshold
+    cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = args.confidence_threshold
+    cfg.MODEL.PANOPTIC_FPN.COMBINE.INSTANCES_CONFIDENCE_THRESH = args.confidence_threshold
+    cfg.DATASETS.TRAIN = ("person_bag_train",)
+    cfg.DATASETS.TEST = ("person_bag_val",)
+    cfg.freeze()
+    return cfg
+
 class XMLInfo:
     def __init__(self, xml_path, output_folder_path):
         self.tree = ET.parse(xml_path)
@@ -203,9 +223,9 @@ class SimpleABDetector:
         self.model.cuda()
         self.model.eval()
         self.abnormal_detections = {}
-        self.fire_model = FireDetection("./fire_model.pt")
+        self.fire_model = FireDetection(model_path="./fire-flame.pt")
         self.pose_model = KeyPoints()
-        self.bag_model = AbandonmentDetector()
+        # self.bag_model = AbandonmentDetector()
         self.event_start_time = None
         self.event_end_time = None
         self.event_type = None
@@ -261,8 +281,13 @@ class SimpleABDetector:
 
         results = None
 
-        previous_frame = []
-        previous_data = {}
+        previous_data = {
+            'frame': [],
+            'human_boxes': [],
+            'human_poses': [],
+            'objects': [],
+            'obj_diff': []
+        }
 
         objects = []
 
@@ -299,8 +324,8 @@ class SimpleABDetector:
                         if obj == prev_obj:
                             obj_diff += np.linalg.norm(centroid - prev_centroid)
 
-                if len(previous_frame) == 10:
-                    previous_frame = previous_frame[1:]
+                if len(previous_data['frame']) == 10:
+                    previous_data['frame'] = previous_data['frame'][1:]
                     previous_data['human_boxes'] = previous_data['human_boxes'][1:]
                     previous_data['human_poses'] = previous_data['human_poses'][1:]
                     previous_data['objects'] = previous_data['objects'][1:]
@@ -309,7 +334,7 @@ class SimpleABDetector:
                 # Check violence and fall down
                 if self.event_start_time is None and self.event_type is None:
                     total_diff = 0.0
-                    for i in range(len(previous_frame)):
+                    for i in range(len(previous_data['frame'])):
                         total_diff += previous_data['obj_diff'][i]
 
                     if total_diff > 100:
@@ -321,11 +346,15 @@ class SimpleABDetector:
                         self.event_start_time = frame_index
                         self.event_type = 'Fall Down Detected'
 
-                previous_frame.append(frame)
+                previous_data['frame'].append(frame)
                 previous_data['human_boxes'].append(human_boxes)
                 previous_data['human_poses'].append(human_poses)
                 previous_data['objects'].append(objects)
                 previous_data['obj_diff'].append(obj_diff)
+
+                if frame_index % 100 == 0:
+                    print(frame_index)
+                frame_index += 1
 
                 if self.draw:
                     cv2.putText(frame, f"Frame: {frame_index}", (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)

@@ -5,10 +5,11 @@ import numpy as np
 from torch.autograd import Variable
 import cv2
 from PIL import Image
+from deepstack_sdk import ServerConfig, Detection
 
 class FireDetection:
     def __init__(self, model_path):
-        self.model = load_model(model_path)
+        self.model = torch.load(model_path)
         self.model.eval()
         self.model = self.model.cuda()
 
@@ -55,3 +56,19 @@ class FireDetection:
 
         return orig, class_no, co
 
+if __name__ == "__main__":
+    model_path = "/home/lacie/Github/AbnormalBehaviorRecognition/final/fire-flame.pt"
+    fire_detection = FireDetection(model_path=model_path)
+
+    video_path = "/home/lacie/Datasets/KISA/train/FireDetection/C002100_006.mp4"
+    cap = cv2.VideoCapture(video_path)
+    while True:
+        ret, img = cap.read()
+        if not ret:
+            break
+        img, class_no, co = fire_detection.detect(img)
+
+        cv2.imshow("img", img)
+
+        cv2.waitKey(1)
+    cv2.destroyAllWindows()

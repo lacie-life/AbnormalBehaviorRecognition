@@ -16,6 +16,7 @@ from detectron2.utils.video_visualizer import VideoVisualizer
 import detectron2.utils.video_visualizer
 from detectron2.utils.visualizer import ColorMode, Visualizer
 
+
 import pickle
 
 BAG_LABEL = 1
