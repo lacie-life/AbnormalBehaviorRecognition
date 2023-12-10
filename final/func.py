@@ -94,7 +94,7 @@ class ILDetector:
 
     def detect_human(self, frame):
         # objects = self.model(frame).xyxy[0]
-        objects = self.model.predict(frame, classes=[0])
+        objects = self.model.predict(frame, classes=[0], verbose=False)
 
         humanObjects = objects[0].boxes.data
 
@@ -242,7 +242,7 @@ class SimpleABDetector:
     def detect_human(self, frame, conf=0.6):
         # objects = self.model(frame).xyxy[0]
         conf = float(conf)
-        objects = self.model.predict(frame, classes=[0], conf=conf)
+        objects = self.model.predict(frame, classes=[0], conf=conf, verbose=False)
 
         humanObjects = objects[0].boxes.data
 
@@ -343,6 +343,10 @@ class SimpleABDetector:
         s_count = total_pose.count('standing')
         fa_count = total_pose.count('fall down')
 
+        print("===================================")
+        print(fa_count)
+        print(f_count)
+
         if not started:
             human = False
             for bb in previous_data['human_boxes']:
@@ -351,7 +355,7 @@ class SimpleABDetector:
                     break
             # print(diff)
 
-            if human and diff < background_score + background_score * 0.2 and fa_count > 30:
+            if human and diff < background_score + background_score * 0.1 and fa_count > 30:
                 print("Fall Detected")
                 return 'start'
         else:
@@ -361,7 +365,7 @@ class SimpleABDetector:
                     human = True
                     break
             # print(diff)
-            if human and diff > background_score + background_score * 0.5 and s_count > 10:
+            if human and diff > background_score + background_score * 0.2 and s_count > 10:
                 print("Fall Detected End")
                 return 'end'
 
@@ -463,7 +467,7 @@ class SimpleABDetector:
 
                 if len(human_boxes) > 0 and start_detect is False:
                     start_detect = True
-                    r_conf = 0.3
+                    conf = 0.3
                     warm_up = frame_index
 
                 if self.window_size * 1.5 < frame_index < 600 + self.window_size * 1.5:
