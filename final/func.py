@@ -293,6 +293,8 @@ class SimpleABDetector:
 
         human_boxes = []
         previous_obj = None
+        objects = None
+        obj_diff = 0.0
 
         while cap.isOpened():
             ret, frame = cap.read()
@@ -318,21 +320,21 @@ class SimpleABDetector:
                     for box in human_boxes:
                         human_poses.append(self.pose_model.detectPoints(frame, box))
 
-                # Update tracker
-                objects = self.tracker.update(human_boxes)
-                # Calculate distance between previous and current objects
-                obj_diff = 0.0
+                    # Update tracker
+                    objects = self.tracker.update(human_boxes)
+                    # Calculate distance between previous and current objects
+                    obj_diff = 0.0
 
-                if previous_obj is None:
-                    previous_obj = objects.items()
-                else:
-                    for (obj, centroid) in objects.items():
-                        for (prev_obj, prev_centroid) in previous_obj:
-                            if obj == prev_obj:
-                                obj_diff += np.linalg.norm(centroid - prev_centroid)
+                    if previous_obj is None:
+                        previous_obj = objects.items()
+                    else:
+                        for (obj, centroid) in objects.items():
+                            for (prev_obj, prev_centroid) in previous_obj:
+                                if obj == prev_obj:
+                                    obj_diff += np.linalg.norm(centroid - prev_centroid)
                     previous_obj = objects.items()
 
-                if len(previous_data['frame']) == 10:
+                if len(previous_data['frame']) == 30:
                     previous_data['frame'] = previous_data['frame'][1:]
                     previous_data['human_boxes'] = previous_data['human_boxes'][1:]
                     previous_data['human_poses'] = previous_data['human_poses'][1:]
@@ -344,26 +346,13 @@ class SimpleABDetector:
                     total_diff = 0.0
                     box_check = False
                     for box in range(len(previous_data['human_boxes'])):
-                        for obj in range(len(previous_data['human_boxes'][box])):
-                            if len(human_boxes) > 0 and len(previous_data['human_boxes'][box]) > 0:
-                                if previous_data['human_boxes'][box][obj] == human_boxes[obj]:
-                                    box_check = True
-                                else:
-                                    box_check = False
-                                    break
-                        if box_check:
+                        if len(previous_data['human_boxes'][box]) > 0:
                             total_diff += previous_data['obj_diff'][box]
-                        else:
-                            break
-                    # for i in range(len(previous_data['frame'])):
-                    #     total_diff += previous_data['obj_diff'][i]
 
                     if total_diff > 100:
-                        results = frame
                         self.event_start_time = frame_index
                         self.event_type = 'Violence Detected'
-                    if total_diff < 10 and len(human_boxes) > 0 and len(previous_data['human_boxes']) > 0 and total_diff > 0:
-                        results = frame
+                    if 10 > total_diff > 0:
                         self.event_start_time = frame_index
                         self.event_type = 'Fall Down Detected'
 
