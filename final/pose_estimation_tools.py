@@ -1,6 +1,5 @@
 import time
 import cv2
-import matplotlib.pyplot as plt
 import numpy as np
 import openpifpaf
 from ultralytics import YOLO
@@ -90,8 +89,8 @@ def humanDetection(model, image):
 if __name__ == "__main__":
     keypoint = KeyPoints()
 
-    video_folder_path = "/home/lacie/Videos/fight"
-    label = "fight"
+    video_folder_path = "/home/lacie/Datasets/KISA/ver-4/walking"
+    label = "walk"
 
     video_paths = [os.path.join(video_folder_path, file) for file in os.listdir(video_folder_path) if file.endswith(".mp4")]
     model = YOLO('/home/lacie/Github/AbnormalBehaviorRecognition/final/yolov8x.pt')
@@ -103,7 +102,7 @@ if __name__ == "__main__":
         video_name = video_path.split('/')[-1].split('.')[0]
 
         # write keypoint txt to file
-        with open(f"/home/lacie/Github/AbnormalBehaviorRecognition/final/{video_name}.txt", "w") as f:
+        with open(f"/home/lacie/Github/AbnormalBehaviorRecognition/final/data_pose/{video_name}.txt", "w") as f:
             f.write(label + "\n")
             while True:
                 ret, frame = cap.read()

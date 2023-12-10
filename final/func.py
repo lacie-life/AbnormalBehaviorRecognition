@@ -6,31 +6,12 @@ import numpy as np
 from datetime import timedelta
 from pose_estimation_tools import KeyPoints
 from fire_tools import FireDetection
-from bag_tools import AbandonmentDetector
+# from bag_tools import AbandonmentDetector
 from simple_tracker import SimpleTracker
 from ultralytics import YOLO
-
-from detectron2.data.datasets import register_coco_instances
-from detectron2.config import get_cfg
-from detectron2.data.detection_utils import read_image
-from detectron2.utils.logger import setup_logger
-from detectron2 import model_zoo
+from skimage.metrics import structural_similarity as ssim
 
 MAX_DIFF = 100000
-
-def setup_cfg(args):
-    # load config from file and command-line arguments
-    cfg = get_cfg()
-    cfg.merge_from_file(model_zoo.get_config_file("COCO-Detection/faster_rcnn_R_101_FPN_3x.yaml"))
-    cfg.merge_from_list(args.opts)
-    # Set score_threshold for builtin models
-    cfg.MODEL.RETINANET.SCORE_THRESH_TEST = args.confidence_threshold
-    cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = args.confidence_threshold
-    cfg.MODEL.PANOPTIC_FPN.COMBINE.INSTANCES_CONFIDENCE_THRESH = args.confidence_threshold
-    cfg.DATASETS.TRAIN = ("person_bag_train",)
-    cfg.DATASETS.TEST = ("person_bag_val",)
-    cfg.freeze()
-    return cfg
 
 class XMLInfo:
     def __init__(self, xml_path, output_folder_path):
@@ -265,24 +246,36 @@ class SimpleABDetector:
     def detect_fire(self, frame):
         return self.fire_model.detect(frame)
 
-    def calculate_diff_frame(self, set_frames, frame):
+    def calculate_diff_frame(self, set_frames, frame, metric='ssim'):
 
         if len(set_frames) < self.window_size - 1:
             return MAX_DIFF
+        
+        diff = None
 
-        start_frame = set_frames[0]
+        if metric == 'mse':
 
-        # subtract 2 image
-        diff = cv2.absdiff(start_frame, frame)
+            start_frame = set_frames[0]
 
-        # err = np.sum(diff ** 2)
-        mse = np.sum(diff ** 2)/float(frame.shape[0] * frame.shape[1])
+            # subtract 2 image
+            diff = cv2.absdiff(start_frame, frame)
 
-        # mse = err/(float(frame.shape[0]) * frame.shape[1])
+            diff = np.sum(diff ** 2)/float(frame.shape[0] * frame.shape[1])
+        elif metric == 'ssim':
+            start_frame = set_frames[0]
 
-        return mse
+            gray_image1 = cv2.cvtColor(start_frame, cv2.COLOR_BGR2GRAY)
+            gray_image2 = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-    def detect_aband(self, previous_data, frame, diff, background_score):
+            # # subtract 2 image
+            # diff = cv2.compareSSIM(gray_image1, gray_image2, full=True)
+            diff = ssim(gray_image1, gray_image2)
+
+        return diff
+
+    def detect_aband(self, previous_data, frame, background_score):
+
+        diff = self.calculate_diff_frame(previous_data['frame'][0], frame)
 
         human = False
         for bb in previous_data['human_boxes']:
@@ -291,7 +284,7 @@ class SimpleABDetector:
                 break
 
         print(diff)
-        if not human and diff < background_score + background_score * 0.1:
+        if not human and background_score - background_score * 0.1 < diff < background_score + background_score * 0.1:
             print("Abandonment Detected")
             print("Current: " + str(diff))
             print("Background: " + str(background_score))
@@ -300,7 +293,9 @@ class SimpleABDetector:
 
         return False
 
-    def check_fire(self, previous_data, frame, diff, background_score, started=False):
+    def check_fire(self, previous_data, frame, background_score, started=False):
+
+        diff = self.calculate_diff_frame(previous_data['frame'][0], frame)
 
         if not started:
             human = False
@@ -314,7 +309,7 @@ class SimpleABDetector:
                 count = 0
                 for frame in previous_data['frame']:
                     fire_frame, isFire, prob = self.detect_fire(frame)
-                    if isFire == '1' or isFire == '2':
+                    if (isFire == '1' or isFire == '2') and prob > 0.5:
                         count += 1
 
                 if count > 10:
@@ -330,7 +325,10 @@ class SimpleABDetector:
                 print("Fire Detected End")
                 return 'end'
 
-    def check_fall(self, previous_data, frame, diff, background_score, started=False):
+    def check_fall(self, previous_data, frame, background_score, started=False):
+
+        diff = self.calculate_diff_frame(previous_data['frame'][0], frame)
+
         # Check by pose
         total_pose = []
         for pose in range(len(previous_data['pose_type'])):
@@ -369,7 +367,10 @@ class SimpleABDetector:
                 print("Fall Detected End")
                 return 'end'
 
-    def check_fight(self, previous_data, frame, diff, background_score, started=False):
+    def check_fight(self, previous_data, frame, background_score, started=False):
+
+        diff = self.calculate_diff_frame(previous_data['frame'][0], frame)
+
         # Check by pose
         total_pose = []
         for pose in range(len(previous_data['pose_type'])):
@@ -381,6 +382,10 @@ class SimpleABDetector:
         f_count = total_pose.count('fighting')
         s_count = total_pose.count('standing')
         fa_count = total_pose.count('fall down')
+
+        print("===================================")
+        print(fa_count)
+        print(f_count)
 
         if not started:
             human = False
@@ -505,43 +510,43 @@ class SimpleABDetector:
                     # TODO: Update pose classification based on skeleton model
                     # Check Abandonment
                     if self.event_start_time is None and self.event_type is None:
-                        check_aband = self.detect_aband(previous_data, frame, diff, background_score)
+                        check_aband = self.detect_aband(previous_data, frame, background_score)
                         if check_aband:
                             self.event_start_time = frame_index
                             self.event_type = 'Abandonment Detected'
 
                     # Check fire
                     if self.event_start_time is None and self.event_type is None:
-                        check_fire = self.check_fire(previous_data, frame, diff, background_score)
+                        check_fire = self.check_fire(previous_data, frame, background_score)
                         if check_fire == 'start':
                             self.event_start_time = frame_index
                             self.event_type = 'Fire Detected'
                     elif self.event_start_time is not None and self.event_type == 'Fire Detected':
-                        check_fire = self.check_fire(previous_data, frame, diff, background_score, started=True)
+                        check_fire = self.check_fire(previous_data, frame, background_score, started=True)
                         if not check_fire == 'end':
                             self.event_end_time = frame_index
                             self.event_type = 'Normal'
 
                     # Check fall down
                     if self.event_start_time is None and self.event_type is None:
-                        check_fall = self.check_fall(previous_data, frame, diff, background_score)
+                        check_fall = self.check_fall(previous_data, frame, background_score)
                         if check_fall == 'start':
                             self.event_start_time = frame_index
                             self.event_type = 'Fall Detected'
                     elif self.event_start_time is not None and self.event_type == 'Fall Detected':
-                        check_fall = self.check_fall(previous_data, frame, diff, background_score, started=True)
+                        check_fall = self.check_fall(previous_data, frame, background_score, started=True)
                         if check_fall == 'end':
                             self.event_end_time = frame_index
                             self.event_type = 'Normal'
 
                     # Check violence
                     if self.event_start_time is None and self.event_type is None:
-                        check_fight = self.check_fight(previous_data, frame, diff, background_score)
+                        check_fight = self.check_fight(previous_data, frame, background_score)
                         if check_fight:
                             self.event_start_time = frame_index
                             self.event_type = 'Fight Detected'
                     elif self.event_start_time is not None and self.event_type == 'Fight Detected':
-                        check_fight = self.check_fight(previous_data, frame, diff, background_score, started=True)
+                        check_fight = self.check_fight(previous_data, frame, background_score, started=True)
                         if not check_fight:
                             self.event_end_time = frame_index
                             self.event_type = 'Normal'
