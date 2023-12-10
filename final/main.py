@@ -3,7 +3,7 @@ import xml.etree.ElementTree as ET
 from func import XMLInfo, ILDetector, SimpleABDetector
 import os
 
-data_folder_path = "/home/lacie/Datasets/KISA/train/FireDetection/test"
+data_folder_path = "/home/lacie/Datasets/KISA/train/Abandonment/test"
 output_folder_path = "/home/lacie/Datasets/KISA/results/output"
 
 def get_video_infor(data_folder_path, output_folder_path):
