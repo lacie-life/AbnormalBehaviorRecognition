@@ -90,7 +90,8 @@ def humanDetection(model, image):
 if __name__ == "__main__":
     keypoint = KeyPoints()
 
-    video_folder_path = "/home/lacie/Videos/walking"
+    video_folder_path = "/home/lacie/Videos/fight"
+    label = "fight"
 
     video_paths = [os.path.join(video_folder_path, file) for file in os.listdir(video_folder_path) if file.endswith(".mp4")]
     model = YOLO('/home/lacie/Github/AbnormalBehaviorRecognition/final/yolov8x.pt')
@@ -103,6 +104,7 @@ if __name__ == "__main__":
 
         # write keypoint txt to file
         with open(f"/home/lacie/Github/AbnormalBehaviorRecognition/final/{video_name}.txt", "w") as f:
+            f.write(label + "\n")
             while True:
                 ret, frame = cap.read()
                 if ret:
@@ -121,7 +123,7 @@ if __name__ == "__main__":
                             # f.write("\n")
                             for i in range(len(keypoints)):
                                 cv2.putText(frame, str(i), (int(keypoints[i][0]), int(keypoints[i][1])), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
-                                f.write(str(i) + " " + str(keypoints[i][0]) + " " + str(keypoints[i][1]) + " ")
+                                f.write(str(keypoints[i][0]) + " " + str(keypoints[i][1]) + " ")
                                 f.write("\n")
 
                     cv2.imshow("frame", frame)

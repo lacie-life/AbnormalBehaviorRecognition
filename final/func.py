@@ -16,6 +16,8 @@ from detectron2.data.detection_utils import read_image
 from detectron2.utils.logger import setup_logger
 from detectron2 import model_zoo
 
+MAX_DIFF = 100000
+
 def setup_cfg(args):
     # load config from file and command-line arguments
     cfg = get_cfg()
@@ -235,10 +237,12 @@ class SimpleABDetector:
         self.draw = True
         self.tracker = SimpleTracker()
         self.pre_event = None
+        self.window_size = 60
 
-    def detect_human(self, frame):
+    def detect_human(self, frame, conf=0.6):
         # objects = self.model(frame).xyxy[0]
-        objects = self.model.predict(frame, classes=[0])
+        conf = float(conf)
+        objects = self.model.predict(frame, classes=[0], conf=conf)
 
         humanObjects = objects[0].boxes.data
 
@@ -263,23 +267,83 @@ class SimpleABDetector:
 
     def calculate_diff_frame(self, set_frames, frame):
 
+        if len(set_frames) < self.window_size - 1:
+            return MAX_DIFF
+
         start_frame = set_frames[0]
 
         # subtract 2 image
         diff = cv2.absdiff(start_frame, frame)
 
-        return diff
+        # err = np.sum(diff ** 2)
+        mse = np.sum(diff ** 2)/float(frame.shape[0] * frame.shape[1])
 
-    def detect_aband(self, set_frames, frame):
+        # mse = err/(float(frame.shape[0]) * frame.shape[1])
 
-        return True
+        return mse
 
-    def check_fire(self, frame):
-        orig = frame.copy()
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        (minVal, maxVal, minLoc, maxLoc) = cv2.minMaxLoc(gray)
-        gray = cv2.GaussianBlur(gray, (100, 100), 0)
-        (minVal, maxVal, minLoc, maxLoc) = cv2.minMaxLoc(gray)
+    def detect_aband(self, previous_data, frame, diff, background_score):
+
+        human = False
+        for bb in previous_data['human_boxes']:
+            if len(bb) > 0:
+                human = True
+                break
+
+        print(diff)
+        if not human and diff < background_score + background_score * 0.1:
+            print("Abandonment Detected")
+            print("Current: " + str(diff))
+            print("Background: " + str(background_score))
+            exit(0)
+            return True
+
+        return False
+
+    def check_fire(self, previous_data, frame, diff, background_score, started=False):
+
+        if not started:
+            human = False
+            for bb in previous_data['human_boxes']:
+                if len(bb) > 0:
+                    human = True
+                    break
+            # print(diff)
+            if not human and diff > background_score + background_score * 0.2:
+                print("Fire Detected")
+                return 'start'
+        else:
+            human = False
+            for bb in previous_data['human_boxes']:
+                if len(bb) > 0:
+                    human = True
+                    break
+            # print(diff)
+            if not human and diff < background_score + background_score * 0.1:
+                print("Fire Detected End")
+                return 'end'
+
+    def check_fall(self, previous_data, frame, diff, background_score, started=False):
+        if not started:
+            human = False
+            for bb in previous_data['human_boxes']:
+                if len(bb) > 0:
+                    human = True
+                    break
+            # print(diff)
+            if human and diff < background_score + background_score * 0.2:
+                print("Fall Detected")
+                return 'start'
+        else:
+            human = False
+            for bb in previous_data['human_boxes']:
+                if len(bb) > 0:
+                    human = True
+                    break
+            # print(diff)
+            if human and diff > background_score + background_score * 0.5:
+                print("Fall Detected End")
+                return 'end'
 
     def process_video(self):
 
@@ -314,11 +378,18 @@ class SimpleABDetector:
         }
 
         human_boxes = []
+        human_poses = []
+        pose_types = []
         previous_obj = None
         objects = None
         obj_diff = 0.0
 
         start_detect = False
+
+        conf = 0.6
+
+        background_score = 0.0
+        tmp = 0
 
         while cap.isOpened():
             ret, frame = cap.read()
@@ -329,10 +400,19 @@ class SimpleABDetector:
 
                 oringinal_frame = frame.copy()
 
-                human_boxes, conf = self.detect_human(frame)
+                human_boxes, r_conf = self.detect_human(frame, conf=conf)
+
+                diff = self.calculate_diff_frame(previous_data['frame'], frame)
 
                 if len(human_boxes) > 0 and start_detect is False:
                     start_detect = True
+                    r_conf = 0.3
+
+                if self.window_size * 1.5 < frame_index < 600 + self.window_size * 1.5:
+                    background_score += diff
+                    tmp += 1
+                if frame_index == 600 + self.window_size * 1.5:
+                    background_score /= tmp
 
                 # Detect fire
                 # fire_frame, isFire, prob = self.detect_fire(frame)
@@ -344,15 +424,60 @@ class SimpleABDetector:
 
                 if start_detect:
 
-                    diff = self.calculate_diff_frame(previous_data['frame'], frame)
+                    # Get human bounding box and pose
+                    human_poses = []
+                    pose_types = []
+                    if len(human_boxes) > 0:
+                        for box in human_boxes:
+                            pose, tp = self.pose_model.detectPoints(frame, box)
+                            human_poses.append(pose)
+                            pose_types.append(tp)
+                            # print(tp)
 
                     # Check Abandonment
                     if self.event_start_time is None and self.event_type is None:
-                        check_aban = self.detect_aband(previous_data['frame'], frame)
+                        check_aband = self.detect_aband(previous_data, frame, diff, background_score)
+                        if check_aband:
+                            self.event_start_time = frame_index
+                            self.event_type = 'Abandonment Detected'
 
+                    # Check fire
+                    if self.event_start_time is None and self.event_type is None:
+                        check_fire = self.check_fire(previous_data, frame, diff, background_score)
+                        if check_fire == 'start':
+                            self.event_start_time = frame_index
+                            self.event_type = 'Fire Detected'
+                    elif self.event_start_time is not None and self.event_type == 'Fire Detected':
+                        check_fire = self.check_fire(previous_data, frame, diff, background_score, started=True)
+                        if not check_fire == 'end':
+                            self.event_end_time = frame_index
+                            self.event_type = 'Normal'
 
-                    human_poses = []
-                    pose_types = []
+                    # Check fall down
+                    if self.event_start_time is None and self.event_type is None:
+                        check_fall = self.check_fall(previous_data, frame, diff, background_score)
+                        if check_fall == 'start':
+                            self.event_start_time = frame_index
+                            self.event_type = 'Fall Detected'
+                    elif self.event_start_time is not None and self.event_type == 'Fall Detected':
+                        check_fall = self.check_fall(previous_data, frame, diff, background_score, started=True)
+                        if check_fall == 'end':
+                            self.event_end_time = frame_index
+                            self.event_type = 'Normal'
+
+                    # # Check violence
+                    # if self.event_start_time is None and self.event_type is None:
+                    #     check_fight = self.check_fight(previous_data, frame, diff)
+                    #     if check_fight:
+                    #         self.event_start_time = frame_index
+                    #         self.event_type = 'Fight Detected'
+                    # elif self.event_start_time is not None and self.event_type == 'Fight Detected':
+                    #     check_fight = self.check_fight(previous_data, frame, diff)
+                    #     if not check_fight:
+                    #         self.event_end_time = frame_index
+                    #         self.event_type = None
+
+                    # Check by diff
                     if len(human_boxes) > 0:
                         for box in human_boxes:
                             pose, tp = self.pose_model.detectPoints(frame, box)
@@ -374,96 +499,103 @@ class SimpleABDetector:
                                         obj_diff += np.linalg.norm(centroid - prev_centroid)
                         previous_obj = objects.items()
 
-                    if len(previous_data['frame']) == 30:
-                        previous_data['frame'] = previous_data['frame'][1:]
-                        previous_data['human_boxes'] = previous_data['human_boxes'][1:]
-                        previous_data['human_poses'] = previous_data['human_poses'][1:]
-                        previous_data['pose_type'] = previous_data['pose_type'][1:]
-                        previous_data['objects'] = previous_data['objects'][1:]
-                        previous_data['obj_diff'] = previous_data['obj_diff'][1:]
+                    # # Check violence and fall down
+                    #
+                    # # Check by diff
+                    # total_diff = 0.0
+                    # box_check = False
+                    # for box in range(len(previous_data['human_boxes'])):
+                    #     if len(previous_data['human_boxes'][box]) > 0:
+                    #         total_diff += previous_data['obj_diff'][box]
+                    #
+                    # print(total_diff)
+                    # if self.event_start_time is None and self.event_type is None:
+                    #     if total_diff > 100:
+                    #         self.event_start_time = frame_index
+                    #         self.event_type = 'Violence Detected'
+                    #     if 10 > total_diff > 0:
+                    #         self.event_start_time = frame_index
+                    #         self.event_type = 'Fall Down Detected'
+                    #
+                    # # Check by pose
+                    # total_pose = []
+                    # for pose in range(len(previous_data['pose_type'])):
+                    #     for tp in previous_data['pose_type'][pose]:
+                    #         if tp == 'unknown':
+                    #             continue
+                    #         total_pose.append(tp)
+                    #
+                    # f_count = total_pose.count('fighting')
+                    # s_count = total_pose.count('standing')
+                    # l_count = total_pose.count('fall down')
+                    #
+                    # if self.event_start_time is None and self.event_type is None:
+                    #     if f_count > 30:
+                    #         self.event_start_time = frame_index
+                    #         self.event_type = 'Violence Detected'
+                    #     elif l_count > 30:
+                    #         self.event_start_time = frame_index
+                    #         self.event_type = 'Fall Down Detected'
+                    #
+                    # elif self.event_start_time is not None:
+                    #     if self.event_type == 'Violence Detected':
+                    #         if f_count == 0:
+                    #             self.event_end_time = frame_index
+                    #             self.event_type = None
+                    #     elif self.event_type == 'Fall Down Detected':
+                    #         if s_count > 10:
+                    #             self.event_end_time = frame_index
+                    #             self.event_type = None
 
-                    # Check violence and fall down
+                if len(previous_data['frame']) == 60:
+                    previous_data['frame'] = previous_data['frame'][1:]
+                    previous_data['human_boxes'] = previous_data['human_boxes'][1:]
+                    previous_data['human_poses'] = previous_data['human_poses'][1:]
+                    previous_data['pose_type'] = previous_data['pose_type'][1:]
+                    previous_data['objects'] = previous_data['objects'][1:]
+                    previous_data['obj_diff'] = previous_data['obj_diff'][1:]
 
-                    # Check by diff
-                    total_diff = 0.0
-                    box_check = False
-                    for box in range(len(previous_data['human_boxes'])):
-                        if len(previous_data['human_boxes'][box]) > 0:
-                            total_diff += previous_data['obj_diff'][box]
+                previous_data['frame'].append(frame)
+                previous_data['human_boxes'].append(human_boxes)
+                previous_data['human_poses'].append(human_poses)
+                previous_data['pose_type'].append(pose_types)
+                previous_data['objects'].append(objects)
+                previous_data['obj_diff'].append(obj_diff)
 
-                    print(total_diff)
-                    if self.event_start_time is None and self.event_type is None:
-                        if total_diff > 100:
-                            self.event_start_time = frame_index
-                            self.event_type = 'Violence Detected'
-                        if 10 > total_diff > 0:
-                            self.event_start_time = frame_index
-                            self.event_type = 'Fall Down Detected'
-
-                    # Check by pose
-                    total_pose = []
-                    for pose in range(len(previous_data['pose_type'])):
-                        for tp in previous_data['pose_type'][pose]:
-                            if tp == 'unknown':
-                                continue
-                            total_pose.append(tp)
-
-                    f_count = total_pose.count('fighting')
-                    s_count = total_pose.count('standing')
-                    l_count = total_pose.count('fall down')
-
-                    if self.event_start_time is None and self.event_type is None:
-                        if f_count > 30:
-                            self.event_start_time = frame_index
-                            self.event_type = 'Violence Detected'
-                        elif l_count > 30:
-                            self.event_start_time = frame_index
-                            self.event_type = 'Fall Down Detected'
-
-                    elif self.event_start_time is not None:
-                        if self.event_type == 'Violence Detected':
-                            if f_count == 0:
-                                self.event_end_time = frame_index
-                                self.event_type = None
-                        elif self.event_type == 'Fall Down Detected':
-                            if s_count > 10:
-                                self.event_end_time = frame_index
-                                self.event_type = None
-
-                    previous_data['frame'].append(frame)
-                    previous_data['human_boxes'].append(human_boxes)
-                    previous_data['human_poses'].append(human_poses)
-                    previous_data['pose_type'].append(pose_types)
-                    previous_data['objects'].append(objects)
-                    previous_data['obj_diff'].append(obj_diff)
-
-                    if frame_index % 100 == 0:
-                        print(frame_index)
-                    frame_index += 1
-
-                    if self.draw:
-                        cv2.putText(oringinal_frame, f"Frame: {frame_index}", (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-                        if self.event_start_time is not None:
-                            cv2.putText(oringinal_frame, f"Event: {self.event_type}", (10, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255),
+                if self.draw:
+                    cv2.putText(oringinal_frame, f"Frame: {frame_index}", (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+                    if self.event_start_time is not None:
+                        cv2.putText(oringinal_frame, f"Event: {self.event_type}", (10, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255),
                                     2)
-                        elif self.event_start_time is None:
-                            cv2.putText(oringinal_frame, f"Event: Normal", (10, 100), cv2.FONT_HERSHEY_SIMPLEX, 1,
+                    elif self.event_start_time is None:
+                        cv2.putText(oringinal_frame, f"Event: Normal", (10, 100), cv2.FONT_HERSHEY_SIMPLEX, 1,
                                         (0, 0, 255),
                                         2)
+                    if len(human_boxes) > 0:
                         for obj in human_boxes:
                             bbox = [int(obj[0]), int(obj[1]), int(obj[2]), int(obj[3])]
                             cv2.rectangle(oringinal_frame, (bbox[0], bbox[1]), (bbox[2], bbox[3]), (0, 255, 0), 2)
 
                         # print(human_poses)
-                        for pose in human_poses:
-                            for point in pose:
-                                print(point)
-                                if point[0] < 0 or point[1] < 0:
-                                    continue
-                                cv2.circle(oringinal_frame, (int(point[1]), int(point[2])), 5, (255, 0, 0), cv2.FILLED)
+                        for keypoints in human_poses:
+                            if len(keypoints) > 0:
+                                for i in range(len(keypoints)):
+                                    cv2.putText(frame, str(i), (int(keypoints[i][0]), int(keypoints[i][1])),
+                                                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
 
+                if frame_index % 100 == 0:
+                    print(frame_index)
+                frame_index += 1
+
+                cv2.imshow("Frame", oringinal_frame)
                 out.write(oringinal_frame)
                 cv2.waitKey(1)
+
+        print("Video summary:")
+        print(f"Video path: {self.data_infor['video_path']}")
+        print(f"Type of event: {self.event_type}")
+        print(f"Start time of events: {self.event_start_time}")
+        print(f"End time of events: {self.event_end_time}")
 
         cap.release()
         out.release()
