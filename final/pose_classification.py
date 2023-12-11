@@ -4,15 +4,17 @@ from sklearn import svm
 import os
 import numpy as np
 import pickle
-from sklearn.externals import joblib
+import joblib
 
 keypoints = []
 labels = []
 
-data_ls = sorted(os.listdir('./data_pose/'))
+input_path = '/home/lacie/Github/AbnormalBehaviorRecognition/final/data_pose/'
+
+data_ls = sorted(os.listdir(input_path))
 for file_idx in range (len(data_ls)):
     temp_features = []
-    cur_file = open('./data_pose/' + data_ls[file_idx], 'r').readlines()
+    cur_file = open(input_path + data_ls[file_idx], 'r').readlines()
     count = 0
 
     for line_idx in range (1,len(cur_file)):

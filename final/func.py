@@ -219,6 +219,7 @@ class SimpleABDetector:
         self.tracker = SimpleTracker()
         self.pre_event = None
         self.window_size = 60
+        self.humanState = False # Human is in the scene before event
 
     def detect_human(self, frame, conf=0.6):
         # objects = self.model(frame).xyxy[0]
@@ -511,7 +512,14 @@ class SimpleABDetector:
                     background_score /= tmp
                     background_image = frame.copy()
 
-                if start_detect is True and frame_index > warm_up + (2*video_fps):
+                if start_detect is True:
+
+                    if frame_index < warm_up + (2*video_fps):
+                        previous_data['frame'].append(frame)
+                        previous_data['human_boxes'].append(human_boxes)
+                        previous_data['human_poses'].append([])
+                        previous_data['pose_type'].append([])
+                        continue
 
                     # Get human bounding box and pose
                     if len(human_boxes) > 0:
