@@ -1,56 +1,57 @@
-from sklearn.svm import SVC
-from torch.utils.data import DataLoader, Dataset
+from sklearn import datasets
+from sklearn.model_selection import train_test_split
+from sklearn import svm
 import os
 import numpy as np
-import torch
+import pickle
+from sklearn.externals import joblib
 
-classifier = SVC(C=3, kernel='rbf', probability=True)
+keypoints = []
+labels = []
 
-class PoseDataset(Dataset):
-    def __init__(self, pose_folder_path):
-        self.pose_folder_path = pose_folder_path
-        self.file_paths = os.listdir(self.pose_folder_path)
+data_ls = sorted(os.listdir('./data_pose/'))
+for file_idx in range (len(data_ls)):
+    temp_features = []
+    cur_file = open('./data_pose/' + data_ls[file_idx], 'r').readlines()
+    count = 0
 
-    def __len__(self):
-        return len(self.file_paths)
+    for line_idx in range (1,len(cur_file)):
+        # count=0 means the start of a frame in a video
+        if count == 0:
+            if cur_file[0] == 'fall\n': labels.append(1)
+            elif cur_file[0] == 'fight\n': labels.append(2)
+            elif cur_file[0] == 'walk\n': labels.append(0)
+        count += 1
 
-    def __getitem__(self, idx):
-        self.txt_loader = open(self.file_paths[idx], 'r').readline()
-        y = self.txt_loader[0]
-        x = []
-        for i in range(len(self.txt_loader)):
-            if i == 0:
-                continue
-            x.append(self.txt_loader[i])
+        # Check for space position in each line
+        for character_idx in range(len(cur_file[line_idx])):
+            if cur_file[line_idx][character_idx] == ' ':
+                space = character_idx
+                break
+                
+        temp_features.append(float(cur_file[line_idx][0:space]))
+        temp_features.append(float(cur_file[line_idx][space+1:-2]))
 
-        x = torch.tensor(x)
+        # The end of a frame in a video
+        if count == 17: 
+            keypoints.append(temp_features)
+            count=0
+            temp_features = []
 
-        return x, y
+keypoints = np.array(keypoints)
+labels = np.array(labels)
 
-if __name__ == "__main__":
-    pose_folder_path = "/home/lacie/Github/AbnormalBehaviorRecognition/final/fall-1.txt"
-    pose_dataset = PoseDataset(pose_folder_path)
-    pose_dataloader = DataLoader(pose_dataset, batch_size=1, shuffle=True)
+classifier = svm.SVC(kernel='linear') # Linear Kernel
+classifier.fit(keypoints, labels)
+# svm_weight = pickle.dumps(classifier, 'svm_weight.pkl')
+joblib.dump(classifier, 'svm_weight.pkl')
 
-    for x, y in pose_dataloader:
-        # classifier.fit(x, y)
-        # print(classifier.predict(x))
-        # print(classifier.predict_proba(x))
-        # print(classifier.score(x, y))
-
-        print(x)
-        print(y)
-
-
-
-
-
-
-
-
-
+classifier = joblib.load('svm_weight.pkl')
+classifier.predict(keypoints[0])
 
 
 
-
+# print(keypoints[0])
+# print(len(keypoints))
+# print(len(labels))
 
