@@ -421,7 +421,7 @@ class SimpleABDetector:
             # print(diff)
 
             # if human and diff_background > 50 and fa_count > 30:
-            if human and diff_background > 50 and mean_diff > background_score + background_score * 0.02 and mean_diff < background_score + background_score * 0.05:
+            if human and diff_background > 50 and mean_diff < background_score + background_score * 0.02 and mean_diff > background_score - background_score * 0.05:
                 print("Fall Detected")
                 return 'start'
         else:
@@ -431,7 +431,7 @@ class SimpleABDetector:
                     human = True
                     break
             # print(diff)
-            if human and diff > background_score + background_score * 0.02 and s_count > 10:
+            if human and diff_background > 50 and s_count > 10:
                 print("Fall Detected End")
                 return 'end'
 
@@ -463,7 +463,7 @@ class SimpleABDetector:
                     break
             # print(diff)
 
-            if human and diff < background_score + background_score * 0.2 and f_count > 30:
+            if human and diff > background_score + background_score * 0.2 and f_count > 30:
                 print("Fight Detected")
                 return 'start'
         else:
@@ -473,7 +473,7 @@ class SimpleABDetector:
                     human = True
                     break
             # print(diff)
-            if human and diff > background_score + background_score * 0.5 and s_count > 10:
+            if human and diff > background_score - background_score * 0.005 and diff < background_score + background_score * 0.005 and s_count > 10:
                 print("Fight Detected End")
                 return 'end'
 
@@ -658,12 +658,12 @@ class SimpleABDetector:
                             print(self.tmpEventTime)
                         elif check_fall == 'start' and self.tmpEventTime >= 30:
                             self.event_start_time = frame_index
-                            self.event_type = 'Fall down Detected'
+                            self.event_type = 'Falldown Detected'
                             self.tmpEvent = None
                             self.tmpEventTime = 0
                             print("Fall down Detected: " + str(frame_index))
                             # exit(0)
-                    elif self.event_start_time is not None and self.event_type == 'Fall Detected':
+                    elif self.event_start_time is not None and self.event_type == 'Falldown Detected':
                         check_fall = self.check_fall(previous_data, frame, background_score, background_image, started=True)
                         if check_fall == 'end':
                             self.event_end_time = frame_index
@@ -774,4 +774,5 @@ class SimpleABDetector:
 
         # Export to xml file
         self.export_to_xml()
+
 
