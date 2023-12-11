@@ -159,6 +159,17 @@ class ILDetector:
                     cv2.putText(frame, "Loitering", (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
 
         return frame
+    
+    def export_to_xml(self):
+        root = ET.Element("root")
+        video_name = self.data_infor["video_path"].split("/")[-1]
+        video_name = video_name.replace(".mp4", "")
+        ET.SubElement(root, "VideoPath").text = self.data_infor["video_path"]
+        ET.SubElement(root, "Type").text = self.data_infor["abnormal_type"]
+        ET.SubElement(root, "StartTime").text = str(self.event_start_time)
+        ET.SubElement(root, "EndTime").text = str(self.event_end_time)
+        tree = ET.ElementTree(root)
+        tree.write(self.data_infor["output"] + f"/{video_name}_result.xml")
 
     def process_video(self):
         print(self.data_infor["video_path"])
@@ -203,6 +214,9 @@ class ILDetector:
         print(f"Start time of events: {self.event_start_time}")
         print(f"End time of events: {self.event_end_time}")
 
+        # Export to xml file
+        self.export_to_xml()
+
 
 class SimpleABDetector:
     def __init__(self, data_infor):
@@ -221,6 +235,17 @@ class SimpleABDetector:
         self.window_size = 60
         self.humanState = False # Human is in the scene before event
         self.eventAppeared = False # Event is appeared
+
+    def export_to_xml(self):
+        root = ET.Element("root")
+        video_name = self.data_infor["video_path"].split("/")[-1]
+        video_name = video_name.replace(".mp4", "")
+        ET.SubElement(root, "VideoPath").text = self.data_infor["video_path"]
+        ET.SubElement(root, "Type").text = self.data_infor["abnormal_type"]
+        ET.SubElement(root, "StartTime").text = str(self.event_start_time)
+        ET.SubElement(root, "EndTime").text = str(self.event_end_time)
+        tree = ET.ElementTree(root)
+        tree.write(self.data_infor["output"] + f"/{video_name}_result.xml")
 
     def detect_human(self, frame, conf=0.6):
         # objects = self.model(frame).xyxy[0]
@@ -653,4 +678,7 @@ class SimpleABDetector:
         cap.release()
         out.release()
         cv2.destroyAllWindows()
+
+        # Export to xml file
+        self.export_to_xml()
 
