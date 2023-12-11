@@ -59,18 +59,8 @@ class KeyPoints:
             return 'fall'
         elif pred_class == 2: 
             return 'fight'
-
-        # # Check for 'standing'
-        # if nose[1] < min(left_ankle[1], right_ankle[1]):
-        #     return 'standing'
-        # # Check for 'fall down'
-        # elif abs(nose[1] - min(left_ankle[1], right_ankle[1])) < 10:
-        #     return 'fall down'
-        # # Check for 'fighting'
-        # elif max(left_wrist[1], right_wrist[1]) > nose[1]:
-        #     return 'fighting'
-        # else:
-        #     return 'unknown'
+        else:
+            return 'unknown'
 
     def drawPoints(self, frame, points):
         for point in points:

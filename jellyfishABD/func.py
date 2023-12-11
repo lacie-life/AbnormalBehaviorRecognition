@@ -223,7 +223,7 @@ class SimpleABDetector:
         self.data_infor = data_infor
         self.model = YOLO('/home/lacie/Github/AbnormalBehaviorRecognition/final/yolov8x.pt')
         self.abnormal_detections = {}
-        self.fire_model = FireDetection(model_path="/home/lacie/Github/AbnormalBehaviorRecognition/final/fire-flame.pt")
+        self.fire_model = FireDetection(model_path="/home/lacie/Github/AbnormalBehaviorRecognition/jellyfishABD/fire-flame.pt")
         self.pose_model = KeyPoints()
         # self.bag_model = AbandonmentDetector()
         self.event_start_time = None
@@ -232,9 +232,12 @@ class SimpleABDetector:
         self.draw = True
         self.tracker = SimpleTracker()
         self.pre_event = None
-        self.window_size = 60
+        self.window_size = 120
         self.humanState = False # Human is in the scene before event
         self.eventAppeared = False # Event is appeared
+        self.tmpEvent = None
+        self.preTmpEnvent = None
+        self.tmpEventTime = 0
 
     def export_to_xml(self):
         root = ET.Element("root")
@@ -307,12 +310,12 @@ class SimpleABDetector:
 
         diff = self.calculate_diff_frame(previous_data['frame'], frame)
 
-        diff_background = self.calculate_diff_frame([background_image], frame, flag='bg')
+        mean_diff = 0.0
+        for i in range(len(previous_data['frame'])):
+            mean_diff += self.calculate_diff_frame(previous_data['frame'], frame)
+        mean_diff /= len(previous_data['frame'])
 
-        '''
-        background 
-        human 
-        '''
+        diff_background = self.calculate_diff_frame([background_image], frame, flag='bg')
 
         human = False
         for bb in previous_data['human_boxes']:
@@ -322,13 +325,13 @@ class SimpleABDetector:
 
         print(diff)
         print(diff_background)
+        print(human)
         # if (not human) and (diff > background_score - background_score * 0.005) and (diff < background_score + background_score * 0.005):
-        if (not human) and (diff_background > 20):
+        if (not human) and (diff_background > diff*0.1) and (diff > mean_diff - mean_diff * 0.005) and (diff < mean_diff + mean_diff * 0.005):
             print("Abandonment Detected")
             print("Current: " + str(diff))
             print("Background: " + str(background_score))
             print("Background Diff: " + str(diff_background))
-            # exit(0)
             return True
 
         return False
@@ -336,6 +339,11 @@ class SimpleABDetector:
     def check_fire(self, previous_data, frame, background_score, background_image, started=False):
 
         diff = self.calculate_diff_frame(previous_data['frame'], frame, metric='mse')
+
+        mean_diff = 0.0
+        for i in range(len(previous_data['frame'])):
+            mean_diff += self.calculate_diff_frame(previous_data['frame'], frame, metric='mse')
+        mean_diff /= len(previous_data['frame'])
 
         diff_background = self.calculate_diff_frame([background_image], frame, flag='bg')
 
@@ -349,7 +357,7 @@ class SimpleABDetector:
             print(diff)
             print(human)
 
-            if not human and diff > background_score + background_score * 0.02:
+            if not human and diff_background > 50 and mean_diff > background_score + background_score * 0.02:
                 # Re check fire
                 # print(diff_background)
                 count = 0
@@ -362,7 +370,6 @@ class SimpleABDetector:
                     print("Fire Detected")
                     print("Current: " + str(diff))
                     print("Background: " + str(background_score))
-                    # exit(0)
                     return 'start'
         else:
             human = False
@@ -378,6 +385,11 @@ class SimpleABDetector:
 
         diff = self.calculate_diff_frame(previous_data['frame'], frame)
 
+        mean_diff = 0.0
+        for i in range(len(previous_data['frame'])):
+            mean_diff += self.calculate_diff_frame(previous_data['frame'], frame)
+        mean_diff /= len(previous_data['frame'])
+
         diff_background = self.calculate_diff_frame([background_image], frame, flag='bg')
 
         # Check by pose
@@ -388,13 +400,17 @@ class SimpleABDetector:
                     continue
                 total_pose.append(tp)
 
-        f_count = total_pose.count('fighting')
-        s_count = total_pose.count('standing')
-        fa_count = total_pose.count('fall down')
+        f_count = total_pose.count('fight')
+        s_count = total_pose.count('walk')
+        fa_count = total_pose.count('fall')
 
         print("===================================")
         print(fa_count)
         print(f_count)
+        print(s_count)
+        print(diff_background)
+        print(mean_diff)
+        print(background_score)
 
         if not started:
             human = False
@@ -404,7 +420,8 @@ class SimpleABDetector:
                     break
             # print(diff)
 
-            if human and diff < background_score + background_score * 0.001 and fa_count > 30:
+            # if human and diff_background > 50 and fa_count > 30:
+            if human and diff_background > 50 and mean_diff > background_score + background_score * 0.02 and mean_diff < background_score + background_score * 0.05:
                 print("Fall Detected")
                 return 'start'
         else:
@@ -430,9 +447,9 @@ class SimpleABDetector:
                     continue
                 total_pose.append(tp)
 
-        f_count = total_pose.count('fighting')
-        s_count = total_pose.count('standing')
-        fa_count = total_pose.count('fall down')
+        f_count = total_pose.count('fight')
+        s_count = total_pose.count('walk')
+        fa_count = total_pose.count('fall')
 
         print("===================================")
         print(fa_count)
@@ -484,6 +501,7 @@ class SimpleABDetector:
         results = None
 
         previous_data = {
+            'idx': [],
             'frame': [],
             'human_boxes': [],
             'human_poses': [],
@@ -492,9 +510,6 @@ class SimpleABDetector:
             'obj_diff': []
         }
 
-        human_boxes = []
-        human_poses = []
-        pose_types = []
         previous_obj = None
         objects = None
         obj_diff = 0.0
@@ -517,6 +532,10 @@ class SimpleABDetector:
             ret, frame = cap.read()
             if ret is False:
                 break
+
+            human_boxes = []
+            human_poses = []
+            pose_types = []
 
             if frame_index % step_size == 0:
 
@@ -544,14 +563,30 @@ class SimpleABDetector:
 
                     # Warm up
                     if frame_index < warm_up + (2*video_fps):
+                        if len(previous_data['frame']) == self.window_size:
+                            previous_data['idx'] = previous_data['idx'][1:]
+                            previous_data['frame'] = previous_data['frame'][1:]
+                            previous_data['human_boxes'] = previous_data['human_boxes'][1:]
+                            previous_data['human_poses'] = previous_data['human_poses'][1:]
+                            previous_data['pose_type'] = previous_data['pose_type'][1:]
+                            previous_data['objects'] = previous_data['objects'][1:]
+                            previous_data['obj_diff'] = previous_data['obj_diff'][1:]
+
+                        previous_data['idx'].append(frame_index)
                         previous_data['frame'].append(frame)
                         previous_data['human_boxes'].append(human_boxes)
                         previous_data['human_poses'].append([])
                         previous_data['pose_type'].append([])
+                        previous_data['objects'].append([])
+                        previous_data['obj_diff'].append(0.0)
+                        frame_index += 1
+                        print("Warm up")
+
                         continue
 
                     # Get human bounding box and pose
                     if len(human_boxes) > 0:
+                        print("Human detected")
                         for box in human_boxes:
                             pose, tp = self.pose_model.detectPoints(frame, box)
                             human_poses.append(pose)
@@ -574,14 +609,38 @@ class SimpleABDetector:
                     # TODO: Review all threshold and parameters
                     # TODO: Update pose classification based on skeleton model
                     # Check Abandonment
+                    if self.event_start_time is None and self.event_type is None:
+                        print("Check abandonment")
+                        check_aband = self.detect_aband(previous_data, frame, background_score, background_image)
+                        if check_aband: self.tmpEvent = 'aband'
+                        if check_aband and self.tmpEventTime < 30 and self.tmpEvent == 'aband':
+                            self.tmpEvent = 'aband'
+                            self.tmpEventTime += 1
+                            print(self.tmpEventTime)
+                        elif check_aband and self.tmpEventTime >= 30:
+                            self.event_start_time = frame_index
+                            self.event_type = 'Abandonment Detected'
+                            bag = diff = cv2.absdiff(background_image, frame)
+                            self.tmpEvent = None
+                            self.tmpEventTime = 0
+                            # exit(0)
 
                     # Check fire
                     if self.event_start_time is None and self.event_type is None:
+                        print("Check fire")
                         check_fire = self.check_fire(previous_data, frame, background_score, background_image)
-                        if check_fire == 'start':
+                        if check_fire: self.tmpEvent = 'fire'
+                        if check_fire == 'start'and self.tmpEventTime < 30 and self.tmpEvent == 'fire':
+                            self.tmpEvent = 'fire'
+                            self.tmpEventTime += 1
+                            print(self.tmpEventTime)
+                        elif check_fire == 'start' and self.tmpEventTime >= 30:
                             self.event_start_time = frame_index
                             self.event_type = 'Fire Detected'
+                            self.tmpEvent = None
+                            self.tmpEventTime = 0
                             print("Fire Detected: " + str(frame_index))
+                            # exit(0)
                     elif self.event_start_time is not None and self.event_type == 'Fire Detected':
                         check_fire = self.check_fire(previous_data, frame, background_score, background_image, started=True)
                         if not check_fire == 'end':
@@ -590,10 +649,20 @@ class SimpleABDetector:
 
                     # Check fall down
                     if self.event_start_time is None and self.event_type is None:
+                        print("Check fall")
                         check_fall = self.check_fall(previous_data, frame, background_score, background_image)
-                        if check_fall == 'start':
+                        if check_fall: self.tmpEvent = 'fall'
+                        if check_fall == 'start'and self.tmpEventTime < 30 and self.tmpEvent == 'fall':
+                            self.tmpEvent = 'fall'
+                            self.tmpEventTime += 1
+                            print(self.tmpEventTime)
+                        elif check_fall == 'start' and self.tmpEventTime >= 30:
                             self.event_start_time = frame_index
-                            self.event_type = 'Fall Detected'
+                            self.event_type = 'Fall down Detected'
+                            self.tmpEvent = None
+                            self.tmpEventTime = 0
+                            print("Fall down Detected: " + str(frame_index))
+                            # exit(0)
                     elif self.event_start_time is not None and self.event_type == 'Fall Detected':
                         check_fall = self.check_fall(previous_data, frame, background_score, background_image, started=True)
                         if check_fall == 'end':
@@ -602,26 +671,35 @@ class SimpleABDetector:
 
                     # Check violence
                     if self.event_start_time is None and self.event_type is None:
+                        print("Check fight")
                         check_fight = self.check_fight(previous_data, frame, background_score)
-                        if check_fight:
+                        if check_fight: self.tmpEvent = 'fight'
+                        if check_fight == 'start'and self.tmpEventTime < 30 and self.tmpEvent == 'fight':
+                            self.tmpEvent = 'fight'
+                            self.tmpEventTime += 1
+                            print(self.tmpEventTime)
+                        elif check_fight == 'start' and self.tmpEventTime >= 30:
                             self.event_start_time = frame_index
                             self.event_type = 'Fight Detected'
+                            self.tmpEvent = None
+                            self.tmpEventTime = 0
+                            print("Fight Detected: " + str(frame_index))
+                            # exit(0)
                     elif self.event_start_time is not None and self.event_type == 'Fight Detected':
                         check_fight = self.check_fight(previous_data, frame, background_score, started=True)
                         if not check_fight:
                             self.event_end_time = frame_index
                             self.event_type = 'Normal'
-                    
-                    # Check abandonment
-                    if self.event_start_time is None and self.event_type is None:
-                        check_aband = self.detect_aband(previous_data, frame, background_score, background_image)
-                        if check_aband:
-                            self.event_start_time = frame_index
-                            self.event_type = 'Abandonment Detected'
-                            bag = diff = cv2.absdiff(background_image, frame)
 
+                    # Update previous data
+                    if self.tmpEvent != self.preTmpEnvent:
+                        print("Reset tmp event")
+                        self.tmpEventTime = 0
+                    
+                    self.preTmpEnvent = self.tmpEvent
 
                     if len(previous_data['frame']) == self.window_size:
+                        previous_data['idx'] = previous_data['idx'][1:]
                         previous_data['frame'] = previous_data['frame'][1:]
                         previous_data['human_boxes'] = previous_data['human_boxes'][1:]
                         previous_data['human_poses'] = previous_data['human_poses'][1:]
@@ -629,6 +707,14 @@ class SimpleABDetector:
                         previous_data['objects'] = previous_data['objects'][1:]
                         previous_data['obj_diff'] = previous_data['obj_diff'][1:]
 
+                        print("Update previous data")
+                        print("===================================")
+                        print("idx: " + str(previous_data['idx'][-1]))
+                        print("Number frame: " + str(len(previous_data['frame'])))
+                        print("Number bounding box: " + str(len(previous_data['human_boxes'][-1])))
+                        print("Number pose: " + str(len(previous_data['human_poses'][-1])))
+
+                    previous_data['idx'].append(frame_index)
                     previous_data['frame'].append(frame)
                     previous_data['human_boxes'].append(human_boxes)
                     previous_data['human_poses'].append(human_poses)
@@ -637,19 +723,13 @@ class SimpleABDetector:
                     previous_data['obj_diff'].append(obj_diff)
 
                     if self.draw:
-                        cv2.putText(oringinal_frame, f"Frame: {frame_index}", (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-                        if self.event_start_time is not None:
-                            cv2.putText(oringinal_frame, f"Event: {self.event_type}", (10, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255),
-                                        2)
-                        elif self.event_start_time is None:
-                            cv2.putText(oringinal_frame, f"Event: Normal", (10, 100), cv2.FONT_HERSHEY_SIMPLEX, 1,
-                                            (0, 0, 255),
-                                            2)
                         if len(human_boxes) > 0:
+                            i = 0
                             for obj in human_boxes:
                                 bbox = [int(obj[0]), int(obj[1]), int(obj[2]), int(obj[3])]
                                 cv2.rectangle(oringinal_frame, (bbox[0], bbox[1]), (bbox[2], bbox[3]), (0, 255, 0), 2)
-
+                                cv2.putText(oringinal_frame, pose_types[i], (bbox[0], bbox[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                                i += 1
                             # print(human_poses)
                             for keypoints in human_poses:
                                 if len(keypoints) > 0:
@@ -657,17 +737,30 @@ class SimpleABDetector:
                                         cv2.putText(frame, str(i), (int(keypoints[i][0]), int(keypoints[i][1])),
                                                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
 
-                    human_boxes.clear()
-                    human_poses.clear()
-                    pose_types.clear()
-
                 if frame_index % 100 == 0:
                     print(frame_index)
                 frame_index += 1
 
+                cv2.putText(oringinal_frame, f"Frame: {frame_index}", (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+                if self.event_start_time is not None:
+                    cv2.putText(oringinal_frame, f"Event: {self.event_type}", (10, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255),
+                                        2)
+                elif self.event_start_time is None:
+                    cv2.putText(oringinal_frame, f"Event: Normal", (10, 100), cv2.FONT_HERSHEY_SIMPLEX, 1,
+                                            (0, 0, 255),
+                                            2)
+
                 cv2.imshow("Frame", oringinal_frame)
                 out.write(oringinal_frame)
                 cv2.waitKey(1)
+
+        if self.event_end_time is None: 
+            self.event_end_time = frame_index
+        if self.event_start_time is None:
+            self.event_start_time = 0
+        if self.event_end_time is not None and self.event_start_time is not None:
+            self.event_start_time = timedelta(seconds=self.event_start_time / 30)
+            self.event_end_time = timedelta(seconds=self.event_end_time / 30)
 
         print("Video summary:")
         print(f"Video path: {self.data_infor['video_path']}")
