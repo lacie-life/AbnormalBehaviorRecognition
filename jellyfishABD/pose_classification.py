@@ -43,14 +43,15 @@ for file_idx in range (len(data_ls)):
 keypoints = np.array(keypoints)
 labels = np.array(labels)
 
-classifier = svm.SVC(kernel='linear') # Linear Kernel
-classifier.fit(keypoints, labels)
-# svm_weight = pickle.dumps(classifier, 'svm_weight.pkl')
-joblib.dump(classifier, 'svm_weight.pkl')
+# classifier = svm.SVC(kernel='linear') # Linear Kernel
+# classifier.fit(keypoints, labels)
+# # svm_weight = pickle.dumps(classifier, 'svm_weight.pkl')
+# joblib.dump(classifier, 'svm_weight.pkl')
 
 classifier = joblib.load('svm_weight.pkl')
-classifier.predict(keypoints[0])
 
+pred_class = classifier.predict(keypoints[0].reshape(1, -1))
+print(pred_class[0])
 
 
 # print(keypoints[0])

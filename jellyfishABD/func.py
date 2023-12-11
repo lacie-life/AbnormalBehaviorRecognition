@@ -220,6 +220,7 @@ class SimpleABDetector:
         self.pre_event = None
         self.window_size = 60
         self.humanState = False # Human is in the scene before event
+        self.eventAppeared = False # Event is appeared
 
     def detect_human(self, frame, conf=0.6):
         # objects = self.model(frame).xyxy[0]
@@ -500,6 +501,7 @@ class SimpleABDetector:
 
                 diff = self.calculate_diff_frame(previous_data['frame'], frame, flag='bg')
 
+                # Waiting for human appear
                 if len(human_boxes) > 0 and start_detect is False:
                     start_detect = True
                     conf = 0.3
@@ -512,8 +514,10 @@ class SimpleABDetector:
                     background_score /= tmp
                     background_image = frame.copy()
 
+                
                 if start_detect is True:
 
+                    # Warm up
                     if frame_index < warm_up + (2*video_fps):
                         previous_data['frame'].append(frame)
                         previous_data['human_boxes'].append(human_boxes)

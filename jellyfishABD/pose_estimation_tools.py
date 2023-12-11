@@ -5,11 +5,17 @@ import openpifpaf
 from ultralytics import YOLO
 import os
 
+from sklearn import datasets
+from sklearn.model_selection import train_test_split
+from sklearn import svm
+import pickle
+import joblib
 
 class KeyPoints:
 
     def __init__(self):
         self.predictor = self.model()
+        self.classifier = joblib.load('svm_weight.pkl')
 
     def model(self, checkpoint="shufflenetv2k16"):
         predictor = openpifpaf.Predictor(checkpoint=checkpoint)
@@ -39,24 +45,32 @@ class KeyPoints:
         # OpenPifPaf keypoints: [nose, left_eye, right_eye, left_ear, right_ear, left_shoulder, right_shoulder,
         # left_elbow, right_elbow, left_wrist, right_wrist, left_hip, right_hip, left_knee, right_knee, left_ankle, right_ankle]
 
-        # Extract keypoints
-        nose = keypoints[0]
-        left_wrist = keypoints[9]
-        right_wrist = keypoints[10]
-        left_ankle = keypoints[15]
-        right_ankle = keypoints[16]
+        # # Extract keypoints
+        # nose = keypoints[0]
+        # left_wrist = keypoints[9]
+        # right_wrist = keypoints[10]
+        # left_ankle = keypoints[15]
+        # right_ankle = keypoints[16]
+        
+        pred_class = self.classifier.predict(keypoints.reshape(1, -1))[0]
+        if pred_class == 0: 
+            return 'walk'
+        elif pred_class == 1: 
+            return 'fall'
+        elif pred_class == 2: 
+            return 'fight'
 
-        # Check for 'standing'
-        if nose[1] < min(left_ankle[1], right_ankle[1]):
-            return 'standing'
-        # Check for 'fall down'
-        elif abs(nose[1] - min(left_ankle[1], right_ankle[1])) < 10:
-            return 'fall down'
-        # Check for 'fighting'
-        elif max(left_wrist[1], right_wrist[1]) > nose[1]:
-            return 'fighting'
-        else:
-            return 'unknown'
+        # # Check for 'standing'
+        # if nose[1] < min(left_ankle[1], right_ankle[1]):
+        #     return 'standing'
+        # # Check for 'fall down'
+        # elif abs(nose[1] - min(left_ankle[1], right_ankle[1])) < 10:
+        #     return 'fall down'
+        # # Check for 'fighting'
+        # elif max(left_wrist[1], right_wrist[1]) > nose[1]:
+        #     return 'fighting'
+        # else:
+        #     return 'unknown'
 
     def drawPoints(self, frame, points):
         for point in points:
