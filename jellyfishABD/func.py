@@ -229,6 +229,7 @@ class SimpleABDetector:
         self.event_start_time = None
         self.event_end_time = None
         self.event_type = None
+        self.event_type_vis = None
         self.draw = True
         self.tracker = SimpleTracker()
         self.pre_event = None
@@ -244,7 +245,7 @@ class SimpleABDetector:
         video_name = self.data_infor["video_path"].split("/")[-1]
         video_name = video_name.replace(".mp4", "")
         ET.SubElement(root, "VideoPath").text = self.data_infor["video_path"]
-        ET.SubElement(root, "Type").text = self.data_infor["abnormal_type"]
+        ET.SubElement(root, "Type").text = self.event_type
         ET.SubElement(root, "StartTime").text = str(self.event_start_time)
         ET.SubElement(root, "EndTime").text = str(self.event_end_time)
         tree = ET.ElementTree(root)
@@ -622,7 +623,8 @@ class SimpleABDetector:
                             print(self.tmpEventTime)
                         elif check_aband and self.tmpEventTime >= 30:
                             self.event_start_time = frame_index
-                            self.event_type = 'Abandonment Detected'
+                            self.event_type = 'Abandonment'
+                            self.event_type_vis = 'Abandonment Detected'
                             bag = diff = cv2.absdiff(background_image, frame)
                             self.tmpEvent = None
                             self.tmpEventTime = 0
@@ -639,16 +641,17 @@ class SimpleABDetector:
                             print(self.tmpEventTime)
                         elif check_fire == 'start' and self.tmpEventTime >= 30:
                             self.event_start_time = frame_index
-                            self.event_type = 'Fire Detected'
+                            self.event_type = 'FireDetection'
+                            self.event_type_vis = 'Fire Detected'
                             self.tmpEvent = None
                             self.tmpEventTime = 0
                             print("Fire Detected: " + str(frame_index))
                             # exit(0)
-                    elif self.event_start_time is not None and self.event_type == 'Fire Detected':
+                    elif self.event_start_time is not None and self.event_type == 'FireDetection':
                         check_fire = self.check_fire(previous_data, frame, background_score, background_image, started=True)
                         if not check_fire == 'end':
                             self.event_end_time = frame_index
-                            self.event_type = 'Normal'
+                            self.event_type_vis = 'Normal'
 
                     # Check fall down
                     if self.event_start_time is None and self.event_type is None:
@@ -661,16 +664,17 @@ class SimpleABDetector:
                             print(self.tmpEventTime)
                         elif check_fall == 'start' and self.tmpEventTime >= 30:
                             self.event_start_time = frame_index
-                            self.event_type = 'Falldown Detected'
+                            self.event_type = 'Falldown'
+                            self.event_type_vis = 'Falldown Detected'
                             self.tmpEvent = None
                             self.tmpEventTime = 0
                             print("Fall down Detected: " + str(frame_index))
                             # exit(0)
-                    elif self.event_start_time is not None and self.event_type == 'Falldown Detected':
+                    elif self.event_start_time is not None and self.event_type == 'Falldown':
                         check_fall = self.check_fall(previous_data, frame, background_score, background_image, started=True)
                         if check_fall == 'end':
                             self.event_end_time = frame_index
-                            self.event_type = 'Normal'
+                            self.event_type_vis = 'Normal'
 
                     # Check violence
                     if self.event_start_time is None and self.event_type is None:
@@ -683,12 +687,13 @@ class SimpleABDetector:
                             print(self.tmpEventTime)
                         elif check_fight == 'start' and self.tmpEventTime >= 30:
                             self.event_start_time = frame_index
-                            self.event_type = 'Fight Detected'
+                            self.event_type = 'Violence'
+                            self.event_type_vis = 'Fight Detected'
                             self.tmpEvent = None
                             self.tmpEventTime = 0
                             print("Fight Detected: " + str(frame_index))
                             # exit(0)
-                    elif self.event_start_time is not None and self.event_type == 'Fight Detected':
+                    elif self.event_start_time is not None and self.event_type == 'Violence':
                         check_fight = self.check_fight(previous_data, frame, background_score, background_image, started=True)
                         if not check_fight:
                             self.event_end_time = frame_index
@@ -746,7 +751,7 @@ class SimpleABDetector:
 
                 cv2.putText(oringinal_frame, f"Frame: {frame_index}", (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
                 if self.event_start_time is not None:
-                    cv2.putText(oringinal_frame, f"Event: {self.event_type}", (10, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255),
+                    cv2.putText(oringinal_frame, f"Event: {self.event_type_vis}", (10, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255),
                                         2)
                 elif self.event_start_time is None:
                     cv2.putText(oringinal_frame, f"Event: Normal", (10, 100), cv2.FONT_HERSHEY_SIMPLEX, 1,
