@@ -435,9 +435,11 @@ class SimpleABDetector:
                 print("Fall Detected End")
                 return 'end'
 
-    def check_fight(self, previous_data, frame, background_score, started=False):
+    def check_fight(self, previous_data, frame, background_score, background_image, started=False):
 
         diff = self.calculate_diff_frame(previous_data['frame'], frame)
+
+        diff_background = self.calculate_diff_frame([background_image], frame, flag='bg')
 
         # Check by pose
         total_pose = []
@@ -454,6 +456,8 @@ class SimpleABDetector:
         print("===================================")
         print(fa_count)
         print(f_count)
+        print(diff)
+        print(background_score)
 
         if not started:
             human = False
@@ -461,9 +465,9 @@ class SimpleABDetector:
                 if len(bb) > 0:
                     human = True
                     break
-            # print(diff)
 
-            if human and diff > background_score + background_score * 0.2 and f_count > 30:
+            # if human and diff > background_score + background_score * 0.2 and f_count > 30:
+            if human and f_count > 30 and diff_background > 50: 
                 print("Fight Detected")
                 return 'start'
         else:
@@ -472,8 +476,7 @@ class SimpleABDetector:
                 if len(bb) > 0:
                     human = True
                     break
-            # print(diff)
-            if human and diff > background_score - background_score * 0.005 and diff < background_score + background_score * 0.005 and s_count > 10:
+            if human and s_count > 10 and f_count < 10:
                 print("Fight Detected End")
                 return 'end'
 
@@ -672,7 +675,7 @@ class SimpleABDetector:
                     # Check violence
                     if self.event_start_time is None and self.event_type is None:
                         print("Check fight")
-                        check_fight = self.check_fight(previous_data, frame, background_score)
+                        check_fight = self.check_fight(previous_data, frame, background_score, background_image)
                         if check_fight: self.tmpEvent = 'fight'
                         if check_fight == 'start'and self.tmpEventTime < 30 and self.tmpEvent == 'fight':
                             self.tmpEvent = 'fight'
@@ -686,7 +689,7 @@ class SimpleABDetector:
                             print("Fight Detected: " + str(frame_index))
                             # exit(0)
                     elif self.event_start_time is not None and self.event_type == 'Fight Detected':
-                        check_fight = self.check_fight(previous_data, frame, background_score, started=True)
+                        check_fight = self.check_fight(previous_data, frame, background_score, background_image, started=True)
                         if not check_fight:
                             self.event_end_time = frame_index
                             self.event_type = 'Normal'
