@@ -161,4 +161,7 @@ cython_debug/
 
 /data/kisa/
 /runs/
+/wandb/
+/logs/
+/pretrain/
 
