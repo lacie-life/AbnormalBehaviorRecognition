@@ -223,7 +223,7 @@ class SimpleABDetector:
         self.data_infor = data_infor
         self.model = YOLO('/home/lacie/Github/AbnormalBehaviorRecognition/final/yolov8x.pt')
         self.abnormal_detections = {}
-        self.fire_model = FireDetection(model_path="/home/lacie/Github/AbnormalBehaviorRecognition/jellyfishABD/fire-flame.pt")
+        self.fire_model = FireDetection(model_path="/home/lacie/Github/AbnormalBehaviorRecognition/jellyfishABD/fire-yolov8.pt")
         self.pose_model = KeyPoints()
         # self.bag_model = AbandonmentDetector()
         self.event_start_time = None
@@ -275,7 +275,7 @@ class SimpleABDetector:
         return tmpBB, conf
 
     def detect_fire(self, frame):
-        return self.fire_model.detect(frame)
+        return self.fire_model.detect2(frame)
 
     def calculate_diff_frame(self, set_frames, frame, metric='mse', flag='frame'):
 
@@ -328,7 +328,8 @@ class SimpleABDetector:
         print(diff_background)
         print(human)
         # if (not human) and (diff > background_score - background_score * 0.005) and (diff < background_score + background_score * 0.005):
-        if (not human) and (diff_background > diff*0.1) and (diff > mean_diff - mean_diff * 0.005) and (diff < mean_diff + mean_diff * 0.005):
+        # if (not human) and (diff_background > diff*0.1) and (diff > mean_diff - mean_diff * 0.005) and (diff < mean_diff + mean_diff * 0.005):
+        if (not human) and diff_background > 30:
             print("Abandonment Detected")
             print("Current: " + str(diff))
             print("Background: " + str(background_score))
@@ -358,16 +359,19 @@ class SimpleABDetector:
             print(diff)
             print(human)
 
-            if not human and diff_background > 50 and mean_diff > background_score + background_score * 0.02:
+            count = 0
+            for indx in range(60, len(previous_data['frame'])):
+                bb = self.detect_fire(previous_data['frame'][indx])
+                # print(bb)
+                if len(bb) > 0:
+                    count += 1
+
+            # if not human and diff_background > 50 and mean_diff > background_score + background_score * 0.02:
+            if human:
                 # Re check fire
                 # print(diff_background)
-                count = 0
-                for frame in previous_data['frame']:
-                    fire_frame, isFire, prob = self.detect_fire(frame)
-                    if (isFire == '1' or isFire == '2') and prob > 0.5:
-                        count += 1
-
-                if count > 10:
+                print("Fire frame: " + str(count))
+                if count > 30 and diff_background > 50:
                     print("Fire Detected")
                     print("Current: " + str(diff))
                     print("Background: " + str(background_score))
@@ -422,7 +426,7 @@ class SimpleABDetector:
             # print(diff)
 
             # if human and diff_background > 50 and fa_count > 30:
-            if human and diff_background > 50 and mean_diff < background_score + background_score * 0.02 and mean_diff > background_score - background_score * 0.05:
+            if human and diff_background > 50 and mean_diff < background_score + background_score * 0.02 and mean_diff > background_score - background_score * 0.05 and fa_count > 10:
                 print("Fall Detected")
                 return 'start'
         else:
@@ -585,6 +589,7 @@ class SimpleABDetector:
                         previous_data['obj_diff'].append(0.0)
                         frame_index += 1
                         print("Warm up")
+                        out.write(oringinal_frame)
 
                         continue
 
@@ -628,7 +633,8 @@ class SimpleABDetector:
                             bag = diff = cv2.absdiff(background_image, frame)
                             self.tmpEvent = None
                             self.tmpEventTime = 0
-                            # exit(0)
+                            print("Abandonment Detected: " + str(frame_index))
+                            exit(0)
 
                     # Check fire
                     if self.event_start_time is None and self.event_type is None:
@@ -646,7 +652,7 @@ class SimpleABDetector:
                             self.tmpEvent = None
                             self.tmpEventTime = 0
                             print("Fire Detected: " + str(frame_index))
-                            # exit(0)
+                            exit(0)
                     elif self.event_start_time is not None and self.event_type == 'FireDetection':
                         check_fire = self.check_fire(previous_data, frame, background_score, background_image, started=True)
                         if not check_fire == 'end':
@@ -669,7 +675,7 @@ class SimpleABDetector:
                             self.tmpEvent = None
                             self.tmpEventTime = 0
                             print("Fall down Detected: " + str(frame_index))
-                            # exit(0)
+                            exit(0)
                     elif self.event_start_time is not None and self.event_type == 'Falldown':
                         check_fall = self.check_fall(previous_data, frame, background_score, background_image, started=True)
                         if check_fall == 'end':
@@ -692,7 +698,7 @@ class SimpleABDetector:
                             self.tmpEvent = None
                             self.tmpEventTime = 0
                             print("Fight Detected: " + str(frame_index))
-                            # exit(0)
+                            exit(0)
                     elif self.event_start_time is not None and self.event_type == 'Violence':
                         check_fight = self.check_fight(previous_data, frame, background_score, background_image, started=True)
                         if not check_fight:

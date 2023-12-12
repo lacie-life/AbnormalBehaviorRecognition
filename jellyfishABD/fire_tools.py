@@ -58,22 +58,33 @@ class FireDetection:
         return orig, class_no, co
 
     def detect2(self, img):
-        objects = self.model.predict(img, classes=[0], verbose=False)
+        objects = self.model.predict(img, classes=[0], verbose=False, conf=0.3)
         fireObjects = objects[0].boxes.data
 
+        tmpBB = []
+
+        for i in range(len(fireObjects)):
+            tmpBB.append(fireObjects[i].tolist())
+            # print(fireObjects[i].tolist())
+
+        return tmpBB
 
 
 if __name__ == "__main__":
     model_path = "/home/lacie/Github/AbnormalBehaviorRecognition/jellyfishABD/fire-yolov8.pt"
     fire_detection = FireDetection(model_path=model_path)
 
-    video_path = "/home/lacie/Datasets/KISA/train/FireDetection/C002100_006.mp4"
+    video_path = "/home/lacie/Datasets/KISA/train/Abandonment/test/C096102_001.mp4"
     cap = cv2.VideoCapture(video_path)
     while True:
         ret, img = cap.read()
         if not ret:
             break
-        img, class_no, co = fire_detection.detect(img)
+        bb = fire_detection.detect2(img)
+
+        for i in range(len(bb)):
+            cv2.rectangle(img, (int(bb[i][0]), int(bb[i][1])), (int(bb[i][2]), int(bb[i][3])), (0, 255, 0), 2)
+            cv2.putText(img, str(bb[i][4]), (int(bb[i][0]), int(bb[i][1])), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
 
         cv2.imshow("img", img)
 
