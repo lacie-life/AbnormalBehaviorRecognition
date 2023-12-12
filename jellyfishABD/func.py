@@ -114,6 +114,7 @@ class ILDetector:
 
         return True
 
+    # TODO: Re-check the time
     def detect_abnormality(self, frame, frame_count):
 
         human_boxes = self.detect_human(frame)

@@ -3,4 +3,4 @@ ultralytics
 mediapipe
 opencv-python
 torchsummary
-
+scikit-learn
