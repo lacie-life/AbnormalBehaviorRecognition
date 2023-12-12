@@ -49,7 +49,7 @@ criterion = nn.CrossEntropyLoss()
 optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
 
 # Train the model
-for epoch in range(50):  # loop over the dataset multiple times
+for epoch in range(100):  # loop over the dataset multiple times
     running_loss = 0.0
     for inputs, labels in train_loader:
         inputs, labels = inputs.to(device), labels.to(device)

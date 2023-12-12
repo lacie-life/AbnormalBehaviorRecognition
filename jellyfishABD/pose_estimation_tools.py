@@ -10,12 +10,13 @@ from sklearn.model_selection import train_test_split
 from sklearn import svm
 import pickle
 import joblib
+import torch
 
 class KeyPoints:
 
-    def __init__(self):
+    def __init__(self, model_path=''):
         self.predictor = self.model()
-        self.classifier = joblib.load('svm_weight.pkl')
+        self.classifier = torch.load(model_path)
 
     def model(self, checkpoint="shufflenetv2k16"):
         predictor = openpifpaf.Predictor(checkpoint=checkpoint)
