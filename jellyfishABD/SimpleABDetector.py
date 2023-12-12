@@ -118,9 +118,9 @@ class SimpleABDetector:
                 human = True
                 break
 
-        print(diff)
-        print(diff_background)
-        print(human)
+        # print(diff)
+        # print(diff_background)
+        # print(human)
         # if (not human) and (diff > background_score - background_score * 0.005) and (diff < background_score + background_score * 0.005):
         # if (not human) and (diff_background > diff*0.1) and (diff > mean_diff - mean_diff * 0.005) and (diff < mean_diff + mean_diff * 0.005):
         if (not human) and diff_background > 30:
@@ -150,8 +150,8 @@ class SimpleABDetector:
                     human = True
                     break
             
-            print(diff)
-            print(human)
+            # print(diff)
+            # print(human)
 
             count = 0
             for indx in range(80, len(previous_data['frame'])):
@@ -446,7 +446,7 @@ class SimpleABDetector:
                             self.tmpEvent = None
                             self.tmpEventTime = 0
                             print("Fire Detected: " + str(frame_index))
-                            # exit(0)
+                            exit(0)
                     elif self.event_start_time is not None and self.event_type == 'FireDetection':
                         check_fire = self.check_fire(previous_data, frame, background_score, background_image, started=True)
                         if not check_fire == 'end':
@@ -521,6 +521,7 @@ class SimpleABDetector:
                         print("Number frame: " + str(len(previous_data['frame'])))
                         print("Number bounding box: " + str(len(previous_data['human_boxes'][-1])))
                         print("Number pose: " + str(len(previous_data['human_poses'][-1])))
+                        print("\n")
 
                     previous_data['idx'].append(frame_index)
                     previous_data['frame'].append(frame)

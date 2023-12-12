@@ -5,7 +5,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torchvision import models
 
-data_path = '/home/lacie/Github/AbnormalBehaviorRecognition/final/data_pose'
+data_path = '/home/lacie/Github/AbnormalBehaviorRecognition/data/data_pose/images'
 
 # Load the dataset
 dataset = datasets.ImageFolder(root=data_path, transform=transforms.ToTensor())
@@ -49,7 +49,7 @@ criterion = nn.CrossEntropyLoss()
 optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
 
 # Train the model
-for epoch in range(200):  # loop over the dataset multiple times
+for epoch in range(50):  # loop over the dataset multiple times
     running_loss = 0.0
     for inputs, labels in train_loader:
         inputs, labels = inputs.to(device), labels.to(device)
@@ -99,7 +99,7 @@ with torch.no_grad():
 print(f'Accuracy on test set: {100 * correct / total}%')
 
 # Save the trained model
-torch.save(model.state_dict(), 'pose_resnext_200_epochs.pth')
+torch.save(model.state_dict(), 'pose_resnext_50_epochs.pth')
 #
 # # Load the saved model
 # model = models.vgg16()  # we initialize the model first

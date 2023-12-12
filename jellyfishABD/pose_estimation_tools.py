@@ -42,12 +42,12 @@ class KeyPoints:
         predictions, gt_anns, meta = self.predictor.numpy_image(frameRGB)
 
         pose_type = 'unknown'
+        pose_type = self.check_pose_type(predictions, crop, box)
 
         if predictions == []:
             predict = []
         else:
             predict = predictions[0].data[:, :2]
-            pose_type = self.check_pose_type(predict, crop, box)
             predict[:, 0] += box[0]
             predict[:, 1] += box[1]
 
@@ -67,20 +67,32 @@ class KeyPoints:
         predicted = self.classifier(crop)
         _, pred_class = torch.max(predicted.data, 1)
 
+        print(predicted)
+        pred_class = pred_class.cpu().numpy()[0]
+        print("Pose type: " + str(pred_class))
+
+        print(rect.shape)
+
         if pred_class == 0: 
             return 'walk'
         elif pred_class == 1:
             return 'fall'
         elif pred_class == 2: 
             return 'fight'
-        elif rect.shape[0] > rect.shape[1]:
+        elif rect.shape[0] < rect.shape[1]:
             return 'fall'
         else:
             return 'unknown'
 
-    def fallDetection(self, keypoints, box):
+    def fallDetection(self, predict, box):
         # OpenPifPaf keypoints: [nose, left_eye, right_eye, left_ear, right_ear, left_shoulder, right_shoulder,
         # left_elbow, right_elbow, left_wrist, right_wrist, left_hip, right_hip, left_knee, right_knee, left_ankle, right_ankle]
+
+        if predict == []:
+            keypoints = []
+            return False
+        else:
+            keypoints = predict[0].data[:, :2]
 
         xmin, ymin = box[0], box[1]
         xmax, ymax = box[2], box[3]
@@ -139,13 +151,13 @@ def humanDetection(model, image):
     return tmpBB, conf
 
 if __name__ == "__main__":
-    keypoint = KeyPoints()
+    keypoint = KeyPoints(model_path="/home/lacie/Github/AbnormalBehaviorRecognition/pre-train/pose_resnext_100.pth")
 
-    video_folder_path = "/home/lacie/Videos/fight"
+    video_folder_path = "/home/lacie/Datasets/KISA/train/Violence/test"
     label = "fight"
 
     video_paths = [os.path.join(video_folder_path, file) for file in os.listdir(video_folder_path) if file.endswith(".mp4")]
-    model = YOLO('/home/lacie/Github/AbnormalBehaviorRecognition/final/yolov8x.pt')
+    model = YOLO('/home/lacie/Github/AbnormalBehaviorRecognition/pre-train/yolov8x.pt')
 
     out_folder_path = "/home/lacie/Github/AbnormalBehaviorRecognition/final/data_pose/fight/"
 
@@ -163,17 +175,19 @@ if __name__ == "__main__":
         while True:
             ret, frame = cap.read()
             if ret:
-                if frame_count % 10 == 0:
-                    boxes, conf = humanDetection(model, frame)
-                    for box in boxes:
-                        cropped = frame[box[1]:box[3], box[0]:box[2]]
-                        cropped = cv2.resize(cropped, (224, 224))
-                        cv2.imwrite(out_folder_path + str(count) + '.jpg', cropped)
-                        cv2.waitKey(1)
-                        count += 1
+                bb = humanDetection(model, frame)
+                if bb[0] != []:
+                    for box in bb[0]:
+                        points, pose_type = keypoint.detectPoints(frame, box)
+                        if len(points) > 0:
+                            frame = keypoint.drawPoints(frame, points)
+                        cv2.putText(frame, pose_type, (box[0], box[1]), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
             else:
                 break
             frame_count += 1
+            print(frame_count)
+            cv2.imshow("frame", frame)
+            cv2.waitKey(1)
 
         cap.release()
         cv2.destroyAllWindows()
