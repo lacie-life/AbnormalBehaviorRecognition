@@ -6,13 +6,14 @@ from torch.autograd import Variable
 import cv2
 from PIL import Image
 from deepstack_sdk import ServerConfig, Detection
+from ultralytics import YOLO
 
 class FireDetection:
     def __init__(self, model_path):
-        self.model = torch.load(model_path)
-        self.model.eval()
-        self.model = self.model.cuda()
-
+        # self.model = torch.load(model_path)
+        # self.model.eval()
+        # self.model = self.model.cuda()
+        self.model = YOLO(model_path)
         self.transformer = transforms.Compose([transforms.Resize(size=(224, 224)),
                                   transforms.CenterCrop(224),
                                   transforms.ToTensor(),
@@ -56,8 +57,14 @@ class FireDetection:
 
         return orig, class_no, co
 
+    def detect2(self, img):
+        objects = self.model.predict(img, classes=[0], verbose=False)
+        fireObjects = objects[0].boxes.data
+
+
+
 if __name__ == "__main__":
-    model_path = "/home/lacie/Github/AbnormalBehaviorRecognition/final/model_final.pth"
+    model_path = "/home/lacie/Github/AbnormalBehaviorRecognition/jellyfishABD/fire-yolov8.pt"
     fire_detection = FireDetection(model_path=model_path)
 
     video_path = "/home/lacie/Datasets/KISA/train/FireDetection/C002100_006.mp4"
