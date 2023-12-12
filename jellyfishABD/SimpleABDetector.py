@@ -15,10 +15,10 @@ MAX_DIFF = 100000
 class SimpleABDetector:
     def __init__(self, data_infor):
         self.data_infor = data_infor
-        self.model = YOLO('/home/lacie/Github/AbnormalBehaviorRecognition/final/yolov8x.pt')
+        self.model = YOLO('/home/lacie/Github/AbnormalBehaviorRecognition/pre-train/yolov8x.pt')
         self.abnormal_detections = {}
-        self.fire_model = FireDetection(model_path="/home/lacie/Github/AbnormalBehaviorRecognition/jellyfishABD/fire-yolov8.pt")
-        self.pose_model = KeyPoints()
+        self.fire_model = FireDetection(model_path="/home/lacie/Github/AbnormalBehaviorRecognition/pre-train/fire-yolov8.pt")
+        self.pose_model = KeyPoints(model_path="/home/lacie/Github/AbnormalBehaviorRecognition/pre-train/pose_resnext_100.pth")
         # self.bag_model = AbandonmentDetector()
         self.event_start_time = None
         self.event_end_time = None
@@ -156,7 +156,7 @@ class SimpleABDetector:
             count = 0
             for indx in range(80, len(previous_data['frame'])):
                 bb = self.detect_fire(previous_data['frame'][indx])
-                print(bb)
+                # print(bb)
                 if len(bb) > 0:
                     count += 1
 
@@ -458,11 +458,11 @@ class SimpleABDetector:
                         print("Check fall")
                         check_fall = self.check_fall(previous_data, frame, background_score, background_image)
                         if check_fall: self.tmpEvent = 'fall'
-                        if check_fall == 'start'and self.tmpEventTime < 30 and self.tmpEvent == 'fall':
+                        if check_fall == 'start'and self.tmpEventTime < 10 and self.tmpEvent == 'fall':
                             self.tmpEvent = 'fall'
                             self.tmpEventTime += 1
                             print(self.tmpEventTime)
-                        elif check_fall == 'start' and self.tmpEventTime >= 30:
+                        elif check_fall == 'start' and self.tmpEventTime >= 10:
                             self.event_start_time = frame_index
                             self.event_type = 'Falldown'
                             self.event_type_vis = 'Falldown Detected'

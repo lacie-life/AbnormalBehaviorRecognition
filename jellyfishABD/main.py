@@ -1,7 +1,7 @@
 import cv2
 import xml.etree.ElementTree as ET
-from jellyfishABD.ILDetector import XMLInfo, ILDetector
-from jellyfishABD.SimpleABDetector import SimpleABDetector
+from ILDetector import XMLInfo, ILDetector
+from SimpleABDetector import SimpleABDetector
 import os
 
 data_folder_path = "/home/lacie/Datasets/KISA/train/Falldown/test"

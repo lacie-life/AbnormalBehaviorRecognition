@@ -11,16 +11,27 @@ from sklearn import svm
 import pickle
 import joblib
 import torch
+from torchvision import models
+import torch.nn as nn
 
 class KeyPoints:
 
     def __init__(self, model_path=''):
         self.predictor = self.model()
-        self.classifier = torch.load(model_path)
+        self.classifier = models.resnext50_32x4d()
+        self.classifier.fc = nn.Sequential(
+            nn.Linear(self.classifier.fc.in_features, 512),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(512, 3)
+        )
+        self.classifier.load_state_dict(torch.load(model_path))
+        self.classifier.eval()
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.classifier.to(self.device)
 
     def model(self, checkpoint="shufflenetv2k16"):
         predictor = openpifpaf.Predictor(checkpoint=checkpoint)
-
         return predictor
 
     def detectPoints(self, frame, box):
@@ -36,18 +47,25 @@ class KeyPoints:
             predict = []
         else:
             predict = predictions[0].data[:, :2]
-            pose_type = self.check_pose_type(predict)
+            pose_type = self.check_pose_type(predict, crop, box)
             predict[:, 0] += box[0]
             predict[:, 1] += box[1]
 
         return predict, pose_type
 
-    def check_pose_type(self, keypoints, box):
+    def check_pose_type(self, keypoints, crop, box):
 
         if self.fallDetection(keypoints, box):
             return 'fall'
 
-        pred_class = self.classifier.predict(keypoints.reshape(1, -1))[0]
+        rect = crop.copy()
+        crop = cv2.resize(crop, (224, 224))
+        crop = torch.from_numpy(crop).float().to(self.device)  # Convert to tensor
+        crop = crop.unsqueeze(0) 
+        crop = crop.permute(0, 3, 1, 2)
+
+        predicted = self.classifier(crop)
+        _, pred_class = torch.max(predicted.data, 1)
 
         if pred_class == 0: 
             return 'walk'
@@ -55,6 +73,8 @@ class KeyPoints:
             return 'fall'
         elif pred_class == 2: 
             return 'fight'
+        elif rect.shape[0] > rect.shape[1]:
+            return 'fall'
         else:
             return 'unknown'
 

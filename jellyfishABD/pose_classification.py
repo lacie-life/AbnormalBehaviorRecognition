@@ -118,3 +118,7 @@ torch.save(model.state_dict(), 'pose_resnext_200_epochs.pth')
 #
 # # Print the predicted class
 # print(f'Predicted class: {predicted.item()}') model
+
+
+
+
