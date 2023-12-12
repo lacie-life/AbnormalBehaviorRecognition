@@ -1,60 +1,120 @@
-from sklearn import datasets
-from sklearn.model_selection import train_test_split
-from sklearn import svm
-import os
-import numpy as np
-import pickle
-import joblib
+import torch
+from torch.utils.data import DataLoader, random_split
+from torchvision import datasets, transforms
+import torch.nn as nn
+import torch.optim as optim
+from torchvision import models
 
-keypoints = []
-labels = []
+data_path = '/home/lacie/Github/AbnormalBehaviorRecognition/final/data_pose'
 
-input_path = '/home/lacie/Github/AbnormalBehaviorRecognition/final/data_pose/'
+# Load the dataset
+dataset = datasets.ImageFolder(root=data_path, transform=transforms.ToTensor())
 
-data_ls = sorted(os.listdir(input_path))
-for file_idx in range (len(data_ls)):
-    temp_features = []
-    cur_file = open(input_path + data_ls[file_idx], 'r').readlines()
-    count = 0
+# Determine the lengths of the splits
+train_len = int(0.7 * len(dataset))
+val_len = int(0.15 * len(dataset))
+test_len = len(dataset) - train_len - val_len
 
-    for line_idx in range (1,len(cur_file)):
-        # count=0 means the start of a frame in a video
-        if count == 0:
-            if cur_file[0] == 'fall\n': labels.append(1)
-            elif cur_file[0] == 'fight\n': labels.append(2)
-            elif cur_file[0] == 'walk\n': labels.append(0)
-        count += 1
+# Split the dataset
+train_set, val_set, test_set = random_split(dataset, [train_len, val_len, test_len])
 
-        # Check for space position in each line
-        for character_idx in range(len(cur_file[line_idx])):
-            if cur_file[line_idx][character_idx] == ' ':
-                space = character_idx
-                break
-                
-        temp_features.append(float(cur_file[line_idx][0:space]))
-        temp_features.append(float(cur_file[line_idx][space+1:-2]))
+# Create DataLoaders for each split
+train_loader = DataLoader(train_set, batch_size=64, shuffle=True)
+val_loader = DataLoader(val_set, batch_size=64, shuffle=False)
+test_loader = DataLoader(test_set, batch_size=64, shuffle=False)
 
-        # The end of a frame in a video
-        if count == 17: 
-            keypoints.append(temp_features)
-            count=0
-            temp_features = []
+# Iterate over the DataLoader for training data
+# Load the pre-trained VGG16 model
+model = models.resnext50_32x4d(pretrained=True)
 
-keypoints = np.array(keypoints)
-labels = np.array(labels)
+# Freeze the layers
+for param in model.parameters():
+    param.requires_grad = False
 
-# classifier = svm.SVC(kernel='linear') # Linear Kernel
-# classifier.fit(keypoints, labels)
-# # svm_weight = pickle.dumps(classifier, 'svm_weight.pkl')
-# joblib.dump(classifier, 'svm_weight.pkl')
+# Replace the last layer to match the number of classes in your dataset
+num_classes = len(dataset.classes)
+model.fc = nn.Sequential(
+    nn.Linear(model.fc.in_features, 512),
+    nn.ReLU(),
+    nn.Dropout(0.2),
+    nn.Linear(512, num_classes)
+)
 
-classifier = joblib.load('svm_weight.pkl')
+# Move the model to GPU if available
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model = model.to(device)
 
-pred_class = classifier.predict(keypoints[0].reshape(1, -1))
-print(pred_class[0])
+# Define a loss function and an optimizer
+criterion = nn.CrossEntropyLoss()
+optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
 
+# Train the model
+for epoch in range(50):  # loop over the dataset multiple times
+    running_loss = 0.0
+    for inputs, labels in train_loader:
+        inputs, labels = inputs.to(device), labels.to(device)
 
-# print(keypoints[0])
-# print(len(keypoints))
-# print(len(labels))
+        # zero the parameter gradients
+        optimizer.zero_grad()
 
+        # forward + backward + optimize
+        outputs = model(inputs)
+        loss = criterion(outputs, labels)
+        loss.backward()
+        optimizer.step()
+
+        running_loss += loss.item()
+
+    # print statistics
+    print(f'Epoch {epoch + 1}, Loss: {running_loss / len(train_loader)}')
+
+print('Finished Training')
+
+# Validate the model
+correct = 0
+total = 0
+with torch.no_grad():
+    for data in val_loader:
+        images, labels = data
+        images, labels = images.to(device), labels.to(device)
+        outputs = model(images)
+        _, predicted = torch.max(outputs.data, 1)
+        total += labels.size(0)
+        correct += (predicted == labels).sum().item()
+
+print(f'Accuracy on validation set: {100 * correct / total}%')
+
+# Test the model
+correct = 0
+total = 0
+with torch.no_grad():
+    for data in test_loader:
+        images, labels = data
+        images, labels = images.to(device), labels.to(device)
+        outputs = model(images)
+        _, predicted = torch.max(outputs.data, 1)
+        total += labels.size(0)
+        correct += (predicted == labels).sum().item()
+
+print(f'Accuracy on test set: {100 * correct / total}%')
+
+# Save the trained model
+torch.save(model.state_dict(), 'pose_resnext.pth')
+#
+# # Load the saved model
+# model = models.vgg16()  # we initialize the model first
+# model.load_state_dict(torch.load('model_vgg16.pth'))
+# model = model.to(device)  # move the model to the device
+#
+# # Set the model to evaluation mode
+# model.eval()
+#
+# # Perform inference on new data
+# with torch.no_grad():
+#     # Assume input_data is your new data for which you want to predict
+#     input_data = input_data.to(device)
+#     output = model(input_data)
+#     _, predicted = torch.max(output.data, 1)
+#
+# # Print the predicted class
+# print(f'Predicted class: {predicted.item()}') model

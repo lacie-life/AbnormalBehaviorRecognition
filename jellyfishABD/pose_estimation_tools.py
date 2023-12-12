@@ -41,26 +41,53 @@ class KeyPoints:
 
         return predict, pose_type
 
-    def check_pose_type(self, keypoints):
-        # OpenPifPaf keypoints: [nose, left_eye, right_eye, left_ear, right_ear, left_shoulder, right_shoulder,
-        # left_elbow, right_elbow, left_wrist, right_wrist, left_hip, right_hip, left_knee, right_knee, left_ankle, right_ankle]
+    def check_pose_type(self, keypoints, box):
 
-        # # Extract keypoints
-        # nose = keypoints[0]
-        # left_wrist = keypoints[9]
-        # right_wrist = keypoints[10]
-        # left_ankle = keypoints[15]
-        # right_ankle = keypoints[16]
-        
+        if self.fallDetection(keypoints, box):
+            return 'fall'
+
         pred_class = self.classifier.predict(keypoints.reshape(1, -1))[0]
+
         if pred_class == 0: 
             return 'walk'
-        elif pred_class == 1: 
+        elif pred_class == 1:
             return 'fall'
         elif pred_class == 2: 
             return 'fight'
         else:
             return 'unknown'
+
+    def fallDetection(self, keypoints, box):
+        # OpenPifPaf keypoints: [nose, left_eye, right_eye, left_ear, right_ear, left_shoulder, right_shoulder,
+        # left_elbow, right_elbow, left_wrist, right_wrist, left_hip, right_hip, left_knee, right_knee, left_ankle, right_ankle]
+
+        xmin, ymin = box[0], box[1]
+        xmax, ymax = box[2], box[3]
+
+        # Extract keypoints
+        left_shoulder_y = keypoints[5][1]
+        left_shoulder_x = keypoints[5][0]
+        right_shoulder_y = keypoints[6][1]
+        right_shoulder_x = keypoints[6][0]
+
+        left_body_y = keypoints[11][1]
+        left_body_x = keypoints[11][0]
+        right_body_y = keypoints[12][1]
+        left_foot_y = keypoints[15][1]
+        right_foot_y = keypoints[16][1]
+
+        len_factor = np.sqrt((left_shoulder_y - right_shoulder_y)**2 + (left_shoulder_x - right_shoulder_x)**2)
+        dx = int(xmax) - int(xmin)
+        dy = int(ymax) - int(ymin)
+        difference = dy - dx
+
+        if left_shoulder_y > left_foot_y - len_factor and left_body_y > left_foot_y - (
+            len_factor / 2) and left_shoulder_y > left_body_y - (len_factor / 2) or (
+            right_shoulder_y > right_foot_y - len_factor and right_body_y > right_foot_y - (
+            len_factor / 2) and right_shoulder_y > right_body_y - (len_factor / 2)) \
+            or difference < 0:
+            return True
+        return False
 
     def drawPoints(self, frame, points):
         for point in points:
@@ -93,45 +120,40 @@ def humanDetection(model, image):
 if __name__ == "__main__":
     keypoint = KeyPoints()
 
-    video_folder_path = "/home/lacie/Datasets/KISA/ver-4/walking"
-    label = "walk"
+    video_folder_path = "/home/lacie/Videos/fight"
+    label = "fight"
 
     video_paths = [os.path.join(video_folder_path, file) for file in os.listdir(video_folder_path) if file.endswith(".mp4")]
     model = YOLO('/home/lacie/Github/AbnormalBehaviorRecognition/final/yolov8x.pt')
 
+    out_folder_path = "/home/lacie/Github/AbnormalBehaviorRecognition/final/data_pose/fight/"
+
+    if not os.path.exists(out_folder_path):
+        os.makedirs(out_folder_path)
+
+    count = 0
+    print(video_paths)
     for video_path in video_paths:
 
+        print(video_path)
         cap = cv2.VideoCapture(video_path)
 
-        video_name = video_path.split('/')[-1].split('.')[0]
-
-        # write keypoint txt to file
-        with open(f"/home/lacie/Github/AbnormalBehaviorRecognition/final/data_pose/{video_name}.txt", "w") as f:
-            f.write(label + "\n")
-            while True:
-                ret, frame = cap.read()
-                if ret:
+        frame_count = 0
+        while True:
+            ret, frame = cap.read()
+            if ret:
+                if frame_count % 10 == 0:
                     boxes, conf = humanDetection(model, frame)
-
                     for box in boxes:
+                        cropped = frame[box[1]:box[3], box[0]:box[2]]
+                        cropped = cv2.resize(cropped, (224, 224))
+                        cv2.imwrite(out_folder_path + str(count) + '.jpg', cropped)
+                        cv2.waitKey(1)
+                        count += 1
+            else:
+                break
+            frame_count += 1
 
-                        keypoints, pose_type = keypoint.detectPoints(frame, box)
-                        frame = keypoint.drawPoints(frame, keypoints)
+        cap.release()
+        cv2.destroyAllWindows()
 
-                        cv2.rectangle(frame, (box[0], box[1]), (box[2], box[3]), (0, 0, 255))
-                        cv2.putText(frame, pose_type, (box[0], box[1]), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
-
-                        if len(keypoints) > 0:
-                            # f.write(str(box[0]) + " " + str(box[1]) + " " + str(box[2]) + " " + str(box[3]) + " ")
-                            # f.write("\n")
-                            for i in range(len(keypoints)):
-                                cv2.putText(frame, str(i), (int(keypoints[i][0]), int(keypoints[i][1])), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
-                                f.write(str(keypoints[i][0]) + " " + str(keypoints[i][1]) + " ")
-                                f.write("\n")
-
-                    cv2.imshow("frame", frame)
-                    cv2.waitKey(1)
-                else:
-                    break
-            cap.release()
-            cv2.destroyAllWindows()

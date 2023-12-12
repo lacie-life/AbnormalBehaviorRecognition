@@ -360,9 +360,9 @@ class SimpleABDetector:
             print(human)
 
             count = 0
-            for indx in range(60, len(previous_data['frame'])):
+            for indx in range(80, len(previous_data['frame'])):
                 bb = self.detect_fire(previous_data['frame'][indx])
-                # print(bb)
+                print(bb)
                 if len(bb) > 0:
                     count += 1
 
@@ -652,7 +652,7 @@ class SimpleABDetector:
                             self.tmpEvent = None
                             self.tmpEventTime = 0
                             print("Fire Detected: " + str(frame_index))
-                            exit(0)
+                            # exit(0)
                     elif self.event_start_time is not None and self.event_type == 'FireDetection':
                         check_fire = self.check_fire(previous_data, frame, background_score, background_image, started=True)
                         if not check_fire == 'end':

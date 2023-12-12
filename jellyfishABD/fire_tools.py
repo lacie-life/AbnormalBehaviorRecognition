@@ -58,7 +58,7 @@ class FireDetection:
         return orig, class_no, co
 
     def detect2(self, img):
-        objects = self.model.predict(img, classes=[0], verbose=False, conf=0.3)
+        objects = self.model.predict(img, classes=[0], verbose=False, conf=0.7)
         fireObjects = objects[0].boxes.data
 
         tmpBB = []
