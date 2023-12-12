@@ -4,7 +4,7 @@ from ILDetector import XMLInfo, ILDetector
 from SimpleABDetector import SimpleABDetector
 import os
 
-data_folder_path = "/home/lacie/Datasets/KISA/train/Violence/test"
+data_folder_path = "/home/lacie/Datasets/KISA/train/FireDetection/test"
 output_folder_path = "/home/lacie/Datasets/KISA/results/output"
 
 def get_video_infor(data_folder_path, output_folder_path):

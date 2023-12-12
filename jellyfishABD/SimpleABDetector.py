@@ -78,6 +78,12 @@ class SimpleABDetector:
         
         diff = None
 
+        if flag == 'fire':
+            # subtract 2 image
+            diff = cv2.absdiff(set_frames, frame)
+            diff = np.sum(diff ** 2)/float(frame.shape[0] * frame.shape[1])
+            return diff
+
         if metric == 'mse':
 
             start_frame = set_frames[0]
@@ -95,9 +101,6 @@ class SimpleABDetector:
             # # subtract 2 image
             # diff = cv2.compareSSIM(gray_image1, gray_image2, full=True)
             diff = ssim(gray_image1, gray_image2)
-
-        elif metric == 'bg':
-            diff = cv2.absdiff(set_frames[30], frame)
 
         return diff
 
@@ -134,7 +137,11 @@ class SimpleABDetector:
 
     def check_fire(self, previous_data, frame, background_score, background_image, started=False):
 
-        diff = self.calculate_diff_frame(previous_data['frame'], frame, metric='mse')
+        diff = 0.0
+        if len(previous_data['frame']) <= 90:
+            diff = self.calculate_diff_frame(previous_data['frame'], frame)
+        else:
+            diff = self.calculate_diff_frame(previous_data['frame'][90], frame, metric='mse', flag='fire')
 
         mean_diff = 0.0
         for i in range(len(previous_data['frame'])):
@@ -150,7 +157,9 @@ class SimpleABDetector:
                     human = True
                     break
             
-            # print(diff)
+            print("=====================================================================================")
+            print(diff)
+            print(diff_background)
             # print(human)
 
             count = 0
@@ -160,7 +169,7 @@ class SimpleABDetector:
                 if len(bb) > 0:
                     count += 1
 
-            # if not human and diff_background > 50 and mean_diff > background_score + background_score * 0.02:
+            # if human and diff > 100:
             if human:
                 # Re check fire
                 # print(diff_background)
@@ -446,7 +455,7 @@ class SimpleABDetector:
                             self.tmpEvent = None
                             self.tmpEventTime = 0
                             print("Fire Detected: " + str(frame_index))
-                            exit(0)
+                            # exit(0)
                     elif self.event_start_time is not None and self.event_type == 'FireDetection':
                         check_fire = self.check_fire(previous_data, frame, background_score, background_image, started=True)
                         if not check_fire == 'end':

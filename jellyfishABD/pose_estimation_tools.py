@@ -14,6 +14,8 @@ import torch
 from torchvision import models
 import torch.nn as nn
 
+classes = ['walk', 'fall', 'fight']
+
 class KeyPoints:
 
     def __init__(self, model_path=''):
@@ -65,19 +67,23 @@ class KeyPoints:
         crop = crop.permute(0, 3, 1, 2)
 
         predicted = self.classifier(crop)
-        _, pred_class = torch.max(predicted.data, 1)
+        cls_index = predicted.argmax(dim=1)
+        cls_prob = nn.functional.softmax(predicted, dim=1)
 
-        print(predicted)
-        pred_class = pred_class.cpu().numpy()[0]
+        pred_prob = cls_prob[0][cls_index].item()
+        pred_class = classes[cls_index]
+
+        print(predicted, pred_class, pred_prob)
+        # pred_class = pred_class.cpu().numpy()[0]
         print("Pose type: " + str(pred_class))
 
         print(rect.shape)
 
         if pred_class == 0: 
             return 'walk'
-        elif pred_class == 1:
+        elif pred_class == 2:
             return 'fall'
-        elif pred_class == 2: 
+        elif pred_class == 1: 
             return 'fight'
         elif rect.shape[0] < rect.shape[1]:
             return 'fall'
@@ -151,7 +157,7 @@ def humanDetection(model, image):
     return tmpBB, conf
 
 if __name__ == "__main__":
-    keypoint = KeyPoints(model_path="/home/lacie/Github/AbnormalBehaviorRecognition/pre-train/pose_resnext_100.pth")
+    keypoint = KeyPoints(model_path="/home/lacie/Github/AbnormalBehaviorRecognition/pose_resnext_50_epochs.pth")
 
     video_folder_path = "/home/lacie/Datasets/KISA/train/Violence/test"
     label = "fight"
