@@ -11,14 +11,14 @@ Abnormal Behavior Recognition
     - [x] Create data loader
 - [ ] Choose models
     - [x] Pose estimation model (resnext50 with 3 class walk, fall, fight)
-    - [ ] Fire detection model (yolov8)
-    - [ ] Processing strategy 
+    - [x] Fire detection model (yolov8, low accuracy)
+    - [x] Processing strategy 
 
 - [x] Train model
     - [x] Pose estimation model
 
 - [ ] Postprocessing data
-    - [ ] Calculate the start and end time of abnormal behavior
+    - [x] Calculate the start and end time of abnormal behavior
 
 - [ ] Test model
     - [ ] Tuning with classes of abnormal behavior
