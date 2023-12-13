@@ -97,7 +97,7 @@ class KeyPoints:
         #     return 'walk'
 
         pred = self.predict_image(crop)
-        print(pred)
+        # print(pred)
 
         if pred == 0:
             return 'fall'

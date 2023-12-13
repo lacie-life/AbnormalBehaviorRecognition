@@ -4,3 +4,8 @@ mediapipe
 opencv-python
 torchsummary
 scikit-learn
+openpifpaf
+scikit-image 
+deepstack_sdk
+
+

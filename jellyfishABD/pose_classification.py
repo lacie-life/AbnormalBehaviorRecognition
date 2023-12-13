@@ -128,7 +128,7 @@ model.fc = nn.Sequential(
     nn.Dropout(0.2),
     nn.Linear(512, num_classes)
 )
-model.load_state_dict(torch.load('/home/lacie/Github/AbnormalBehaviorRecognition/jellyfishABD/pose_resnext_newdata2_200_epochs.pth'))
+model.load_state_dict(torch.load('/home/lacie/Github/AbnormalBehaviorRecognition/pre-train/pose_resnext_newdata2_200_epochs.pth'))
 
 
 model.to(device)
@@ -141,11 +141,11 @@ import os
 
 img = cv2.imread('/home/lacie/Videos/data_pose/fight/31.jpg')
 
-img_fol = '/home/lacie/Videos/data_pose/walking'
+img_fol = '/home/lacie/Github/AbnormalBehaviorRecognition/data/data_pose/images/walking'
 
 img_path = [os.path.join(img_fol, file) for file in os.listdir(img_fol) if file.endswith(".jpg")]
 
-label = 1
+label = 2
 count = 0
 for path in img_path:
     # Perform inference on new data

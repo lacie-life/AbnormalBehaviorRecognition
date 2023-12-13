@@ -4,7 +4,7 @@ from ILDetector import XMLInfo, ILDetector
 from SimpleABDetector import SimpleABDetector
 import os
 
-data_folder_path = "/home/lacie/Datasets/KISA/train/Falldown/test"
+data_folder_path = "/home/lacie/Datasets/KISA/train/Loitering/test"
 output_folder_path = "/home/lacie/Datasets/KISA/results/output"
 pre_train_path = "/home/lacie/Github/AbnormalBehaviorRecognition/pre-train"
 
@@ -22,7 +22,7 @@ if __name__ == "__main__":
     for infor in video_infor:
         print(infor)
         if infor["abnormal_type"] is not None:
-            detector = ILDetector(infor)
+            detector = ILDetector(infor, pretrain_path=pre_train_path, visual=True)
             detector.process_video()
         else:
             detector = SimpleABDetector(infor, pretrain_path=pre_train_path)

@@ -5,8 +5,6 @@ from datetime import timedelta
 from ultralytics import YOLO
 from skimage.metrics import structural_similarity as ssim
 
-MAX_DIFF = 100000
-
 class XMLInfo:
     def __init__(self, xml_path, output_folder_path):
         self.tree = ET.parse(xml_path)
@@ -58,14 +56,18 @@ class XMLInfo:
 
 
 class ILDetector:
-    def __init__(self, data_infor):
+    def __init__(self, data_infor, pretrain_path=None, debug=False, visual=False):
         self.data_infor = data_infor
-        self.model = YOLO('/home/lacie/Github/AbnormalBehaviorRecognition/final/yolov8x.pt')
+        self.model = YOLO( pretrain_path + '/yolov8x.pt')
         self.abnormal_detections = {}
         self.abnormal_time = {}
+        self.event_type = 'Normal'
         self.event_start_time = None
         self.event_end_time = None
         self.loitering_offset = 0
+        self.debug = debug
+        self.visual = visual
+        self.event_state = False
 
     def detect_human(self, frame):
         # objects = self.model(frame).xyxy[0]
@@ -111,25 +113,29 @@ class ILDetector:
     # TODO: Re-check the time
     def detect_abnormality(self, frame, frame_count):
 
-        human_boxes = self.detect_human(frame)
+        human_boxes, cof = self.detect_human(frame)
         current_time = frame_count
 
-        current_boxes = {tuple(box) for box in human_boxes}
+        # print(human_boxes)
 
         # draw abnormal area
         area = np.array(self.data_infor['abnormal_area'])
         cv2.polylines(frame, [area], True, (0, 0, 255), 2)
 
-        if len(current_boxes) == 0 and self.event_start_time is not None:
+        if len(human_boxes) == 0 and self.event_start_time is not None and self.event_state is False:
             self.event_end_time = current_time
+            self.event_type = 'Normal'
+            self.event_state = True
 
         # check bounding box in abnormal area
         event_append = False
-        for box in current_boxes:
-            if self._is_in_abnormal_area(box, self.data_infor['abnormal_area']):
-                event_append = True
-                # draw bounding box
-                cv2.rectangle(frame, (box[0], box[1]), (box[2], box[3]), (0, 255, 0), 2)
+        if len(human_boxes) > 0:
+            for box in human_boxes:
+                # print(box)
+                if self._is_in_abnormal_area(box, self.data_infor['abnormal_area']):
+                    event_append = True
+                    # draw bounding box
+                    cv2.rectangle(frame, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), (0, 255, 0), 2)
 
         if event_append:
             if self.data_infor['abnormal_type'] == 'Intrusion':
@@ -137,12 +143,13 @@ class ILDetector:
                 # draw abnormal area
                 area = np.array(self.data_infor['abnormal_area'])
                 cv2.polylines(frame, [area], True, (0, 0, 255), 2)
-                
+
                 if self.event_start_time is None:
+                    self.event_type = 'Intrusion'
                     self.event_start_time = current_time
 
-                if self.event_start_time is not None:
-                    cv2.putText(frame, "Intrusion", (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+                # if self.event_start_time is not None:
+                #     cv2.putText(frame, "Intrusion", (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
 
             if self.data_infor['abnormal_type'] == 'Loitering':
                 # draw abnormal area
@@ -152,10 +159,11 @@ class ILDetector:
                 if self.loitering_offset is None:
                     self.loitering_offset = current_time
                 if self.event_start_time is None and self.loitering_offset is not None and current_time - self.loitering_offset > 300:
+                    self.event_type = 'Loitering'
                     self.event_start_time = current_time
 
-                if self.event_start_time is not None:
-                    cv2.putText(frame, "Loitering", (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+                # if self.event_start_time is not None:
+                #     cv2.putText(frame, "Loitering", (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
 
         return frame
     
@@ -192,9 +200,15 @@ class ILDetector:
             if not ret:
                 break
             frame = self.detect_abnormality(frame, frame_count)
+            
             result.write(frame)
-
             cv2.waitKey(1)
+
+            if self.visual:
+                cv2.putText(frame, "Frame: " + str(frame_count), (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+                cv2.putText(frame, "Event: " + self.event_type, (10, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+                cv2.imshow("frame", frame)
+                cv2.waitKey(1)
 
             if frame_count % 100 == 0:
                 print(frame_count)
@@ -207,11 +221,12 @@ class ILDetector:
         self.event_start_time = timedelta(seconds=self.event_start_time / 30)
         self.event_end_time = timedelta(seconds=self.event_end_time / 30)
 
-        print("Video summary:")
-        print(f"Video path: {self.data_infor['video_path']}")
-        print(f"Type of event: {self.data_infor['abnormal_type']}")
-        print(f"Start time of events: {self.event_start_time}")
-        print(f"End time of events: {self.event_end_time}")
+        if self.debug:
+            print("Video summary:")
+            print(f"Video path: {self.data_infor['video_path']}")
+            print(f"Type of event: {self.data_infor['abnormal_type']}")
+            print(f"Start time of events: {self.event_start_time}")
+            print(f"End time of events: {self.event_end_time}")
 
         # Export to xml file
         self.export_to_xml()

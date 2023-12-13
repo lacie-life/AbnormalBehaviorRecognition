@@ -13,7 +13,7 @@ from skimage.metrics import structural_similarity as ssim
 MAX_DIFF = 100000
 
 class SimpleABDetector:
-    def __init__(self, data_infor, debug=True, pretrain_path=None):
+    def __init__(self, data_infor, debug=True, pretrain_path=None, vis=False):
         self.data_infor = data_infor
         self.model = YOLO(pretrain_path + '/yolov8x.pt')
         self.abnormal_detections = {}
@@ -34,6 +34,7 @@ class SimpleABDetector:
         self.preTmpEnvent = None
         self.tmpEventTime = 0
         self.debug = debug
+        self.vis = vis
 
     def export_to_xml(self):
         root = ET.Element("root")
@@ -70,6 +71,7 @@ class SimpleABDetector:
     def pose_type_fine_tune(self, human_boxes, pose_type):
 
         for i in range(len(human_boxes)):
+            print("Fine tune:" + pose_type[i])
             if pose_type[i] == 'fight':
                 if len(human_boxes[i]) < 2:
                     pose_type[i] = 'walk'
@@ -80,7 +82,7 @@ class SimpleABDetector:
                             dist = np.linalg.norm(np.array(human_boxes[i]) - np.array(human_boxes[j]))
                             if dist < min_dist:
                                 min_dist = dist
-                    if min_dist > 100:
+                    if min_dist > 30 and human_boxes[i][2] - human_boxes[i][0] < 100:
                         pose_type[i] = 'walk'
 
         return pose_type, human_boxes
@@ -138,11 +140,11 @@ class SimpleABDetector:
                 human = True
                 break
 
-        # print(diff)
-        # print(diff_background)
-        # print(human)
-        # if (not human) and (diff > background_score - background_score * 0.005) and (diff < background_score + background_score * 0.005):
-        # if (not human) and (diff_background > diff*0.1) and (diff > mean_diff - mean_diff * 0.005) and (diff < mean_diff + mean_diff * 0.005):
+        if self.debug:
+            print(diff)
+            print(diff_background)
+            print(human)
+
         if (not human) and diff_background > 30:
             print("Abandonment Detected")
             if self.debug:
@@ -154,6 +156,9 @@ class SimpleABDetector:
         return False
 
     def check_fire(self, previous_data, frame, background_score, background_image, started=False):
+
+        if len(previous_data['human_boxes']) > 1:
+            return False
 
         diff = 0.0
         if len(previous_data['frame']) <= 90:
@@ -296,9 +301,21 @@ class SimpleABDetector:
                 if len(bb) > 0:
                     human = True
                     break
+            
+            fight_check  = True
+            # for i in range(len(previous_data['human_boxes'][-1])):
+            #     if len(previous_data['pose_type'][-1]) < 1:
+            #         break
+
+            #     if previous_data['pose_type'][-1][i] == 'fight':
+            #         for j in range(i+1, len(previous_data['human_boxes'][-1])):
+            #             dist = np.linalg.norm(np.array(previous_data['human_boxes'][-1][i]) - np.array(previous_data['human_boxes'][-1][j]))
+            #             if dist < 30:
+            #                 fight_check = True
+            #                 break
 
             # if human and diff > background_score + background_score * 0.2 and f_count > 30:
-            if human and f_count > 30 and diff_background > 50: 
+            if human and f_count > 30 and diff_background > 50 and fight_check: 
                 print("Fight Detected")
                 return 'start'
         else:
@@ -428,7 +445,7 @@ class SimpleABDetector:
                             pose_types.append(tp)
                         pose_types, human_boxes = self.pose_type_fine_tune(human_boxes, pose_types)
                             
-                            # print(tp)
+                        # print(tp)
                         # Update tracker
                         objects = self.tracker.update(human_boxes)
                         # Calculate distance between previous and current objects
@@ -594,9 +611,11 @@ class SimpleABDetector:
                                             (0, 0, 255),
                                             2)
 
-                cv2.imshow("Frame", oringinal_frame)
                 out.write(oringinal_frame)
                 cv2.waitKey(1)
+                if self.vis:
+                    cv2.imshow("Frame", oringinal_frame)
+                    cv2.waitKey(1)
 
         if self.event_end_time is None: 
             self.event_end_time = frame_index
