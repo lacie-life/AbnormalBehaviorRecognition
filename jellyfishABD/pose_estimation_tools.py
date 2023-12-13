@@ -29,7 +29,7 @@ PATH = '/home/lacie/Github/AbnormalBehaviorRecognition/jellyfishABD/model_16_m3_
 
 class KeyPoints:
 
-    def __init__(self, model_path=''):
+    def __init__(self, model_path='', debug=True):
         self.predictor = self.model()
         self.classifier = self.knn_model(model_path)
         # self.classifier = models.resnext50_32x4d()
@@ -43,6 +43,7 @@ class KeyPoints:
         # self.classifier.eval()
         # self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         # self.classifier.to(self.device)
+        self.debug = debug
 
 
     def model(self, checkpoint="shufflenetv2k16"):
@@ -86,7 +87,7 @@ class KeyPoints:
 
     def check_pose_type(self, keypoints, crop, box):
 
-        print("BB: ", box)
+        # print("BB: ", box)
 
         # if self.fall_detection2(keypoints, box):
         #     return 'fall'
@@ -218,13 +219,14 @@ class KeyPoints:
         bb_height = box[3] - box[1]
         aspect_ratio = bb_width / bb_height
 
-        print("left_leg_angle: " + str(left_leg_angle))
-        print("right_leg_angle: " + str(right_leg_angle))
-        print("left_torso_leg_angle: " + str(left_torso_leg_angle))
-        print("right_torso_leg_angle: " + str(right_torso_leg_angle))
-        print("head_left_foot_dist: " + str(head_left_foot_dist))
-        print("head_right_foot_dist: " + str(head_right_foot_dist))
-        print("aspect_ratio: " + str(aspect_ratio))
+        if self.debug:
+            print("left_leg_angle: " + str(left_leg_angle))
+            print("right_leg_angle: " + str(right_leg_angle))
+            print("left_torso_leg_angle: " + str(left_torso_leg_angle))
+            print("right_torso_leg_angle: " + str(right_torso_leg_angle))
+            print("head_left_foot_dist: " + str(head_left_foot_dist))
+            print("head_right_foot_dist: " + str(head_right_foot_dist))
+            print("aspect_ratio: " + str(aspect_ratio))
 
         # If the leg angles are less than a threshold (say, 30 degrees), or the torso-leg angles are greater than a threshold (say, 150 degrees), or the head-foot distance is greater than a threshold (say, 100 units), or the aspect ratio is greater than 1, the person might have fallen
         if left_leg_angle < 30 or right_leg_angle < 30 or left_torso_leg_angle > 150 or aspect_ratio > 1:
@@ -233,7 +235,8 @@ class KeyPoints:
         return False
 
     def fight_detection(self, predict):
-        print("Fight check")
+        if self.debug:
+            print("Fight check")
         # OpenPifPaf keypoints: [nose, left_eye, right_eye, left_ear, right_ear, left_shoulder, right_shoulder,
         # left_elbow, right_elbow, left_wrist, right_wrist, left_hip, right_hip, left_knee, right_knee, left_ankle, right_ankle]
 
@@ -269,12 +272,13 @@ class KeyPoints:
         bb_height = box[3] - box[1]
         aspect_ratio = bb_width / bb_height
 
-        print("left_hand_head_dist: " + str(left_hand_head_dist))
-        print("right_hand_head_dist: " + str(right_hand_head_dist))
-        print("left_hand_body_dist: " + str(left_hand_body_dist))
-        print("right_hand_body_dist: " + str(right_hand_body_dist))
-        print("left_angle: " + str(left_angle))
-        print("right_angle: " + str(right_angle))
+        if self.debug:
+            print("left_hand_head_dist: " + str(left_hand_head_dist))
+            print("right_hand_head_dist: " + str(right_hand_head_dist))
+            print("left_hand_body_dist: " + str(left_hand_body_dist))
+            print("right_hand_body_dist: " + str(right_hand_body_dist))
+            print("left_angle: " + str(left_angle))
+            print("right_angle: " + str(right_angle))
 
         # If the distances and angles are less than a threshold (say, 30 units and 30 degrees), the person might be fighting
         if (left_hand_head_dist < 50 or right_hand_head_dist < 50) and (

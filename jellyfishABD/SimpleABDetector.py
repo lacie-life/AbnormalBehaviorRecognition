@@ -13,12 +13,12 @@ from skimage.metrics import structural_similarity as ssim
 MAX_DIFF = 100000
 
 class SimpleABDetector:
-    def __init__(self, data_infor):
+    def __init__(self, data_infor, debug=True, pretrain_path=None):
         self.data_infor = data_infor
-        self.model = YOLO('/home/lacie/Github/AbnormalBehaviorRecognition/pre-train/yolov8x.pt')
+        self.model = YOLO(pretrain_path + '/yolov8x.pt')
         self.abnormal_detections = {}
-        self.fire_model = FireDetection(model_path="/home/lacie/Github/AbnormalBehaviorRecognition/pre-train/fire-yolov8.pt")
-        self.pose_model = KeyPoints(model_path="/home/lacie/Github/AbnormalBehaviorRecognition/pre-train/knn_model.pkl")
+        self.fire_model = FireDetection(model_path=pretrain_path + '/fire-yolov8.pt')
+        self.pose_model = KeyPoints(model_path=pretrain_path + '/knn_model.pkl')
         # self.bag_model = AbandonmentDetector()
         self.event_start_time = None
         self.event_end_time = None
@@ -33,6 +33,7 @@ class SimpleABDetector:
         self.tmpEvent = None
         self.preTmpEnvent = None
         self.tmpEventTime = 0
+        self.debug = debug
 
     def export_to_xml(self):
         root = ET.Element("root")
@@ -144,9 +145,10 @@ class SimpleABDetector:
         # if (not human) and (diff_background > diff*0.1) and (diff > mean_diff - mean_diff * 0.005) and (diff < mean_diff + mean_diff * 0.005):
         if (not human) and diff_background > 30:
             print("Abandonment Detected")
-            print("Current: " + str(diff))
-            print("Background: " + str(background_score))
-            print("Background Diff: " + str(diff_background))
+            if self.debug:
+                print("Current: " + str(diff))
+                print("Background: " + str(background_score))
+                print("Background Diff: " + str(diff_background))
             return True
 
         return False
@@ -173,10 +175,11 @@ class SimpleABDetector:
                     human = True
                     break
             
-            print("=====================================================================================")
-            print(diff)
-            print(diff_background)
-            # print(human)
+            if self.debug:
+                print("=====================================================================================")
+                print(diff)
+                print(diff_background)
+                # print(human)
 
             count = 0
             for indx in range(70, len(previous_data['frame'])):
@@ -192,8 +195,9 @@ class SimpleABDetector:
                 print("Fire frame: " + str(count))
                 if count > 30 and diff_background > 50:
                     print("Fire Detected")
-                    print("Current: " + str(diff))
-                    print("Background: " + str(background_score))
+                    if self.debug:
+                        print("Current: " + str(diff))
+                        print("Background: " + str(background_score))
                     return 'start'
         else:
             human = False
@@ -228,13 +232,14 @@ class SimpleABDetector:
         s_count = total_pose.count('walk')
         fa_count = total_pose.count('fall')
 
-        print("===================================")
-        print(fa_count)
-        print(f_count)
-        print(s_count)
-        print(diff_background)
-        print(mean_diff)
-        print(background_score)
+        if self.debug:
+            print("===================================")
+            print("Fall case: " + str(fa_count))
+            print("Fight case: " + str(f_count))
+            print("Walking case: " + str(s_count))
+            print(diff_background)
+            print(mean_diff)
+            print(background_score)
 
         if not started:
             human = False
@@ -244,8 +249,8 @@ class SimpleABDetector:
                     break
             # print(diff)
 
-            # if human and diff_background > 50 and fa_count > 30:
-            if human and diff_background > 50 and mean_diff < background_score + background_score * 0.02 and mean_diff > background_score - background_score * 0.05 and fa_count > 10:
+            if human and diff_background > 50 and fa_count > 30:
+            # if human and diff_background > 50 and mean_diff < background_score + background_score * 0.02 and mean_diff > background_score - background_score * 0.05 and fa_count > 10:
                 print("Fall Detected")
                 return 'start'
         else:
@@ -255,7 +260,7 @@ class SimpleABDetector:
                     human = True
                     break
             # print(diff)
-            if human and diff_background > 50 and s_count > 10:
+            if human and diff_background > 50 and mean_diff > background_score + background_score * 0.05 and fa_count < 10:
                 print("Fall Detected End")
                 return 'end'
 
@@ -277,11 +282,13 @@ class SimpleABDetector:
         s_count = total_pose.count('walk')
         fa_count = total_pose.count('fall')
 
-        print("===================================")
-        print(fa_count)
-        print(f_count)
-        print(diff)
-        print(background_score)
+        if self.debug:
+            print("===================================")
+            print("Fall case: " + str(fa_count))
+            print("Fight case: " + str(f_count))
+            print("Walking case: " + str(s_count))
+            print(diff)
+            print(background_score)
 
         if not started:
             human = False
@@ -300,7 +307,7 @@ class SimpleABDetector:
                 if len(bb) > 0:
                     human = True
                     break
-            if human and s_count > 10 and f_count < 10:
+            if human and s_count > 30 and f_count < 10:
                 print("Fight Detected End")
                 return 'end'
 
@@ -542,13 +549,14 @@ class SimpleABDetector:
                         previous_data['objects'] = previous_data['objects'][1:]
                         previous_data['obj_diff'] = previous_data['obj_diff'][1:]
 
-                        print("Update previous data")
-                        print("===================================")
-                        print("idx: " + str(previous_data['idx'][-1]))
-                        print("Number frame: " + str(len(previous_data['frame'])))
-                        print("Number bounding box: " + str(len(previous_data['human_boxes'][-1])))
-                        print("Number pose: " + str(len(previous_data['human_poses'][-1])))
-                        print("\n")
+                        if self.debug:
+                            print("Update previous data")
+                            print("===================================")
+                            print("idx: " + str(previous_data['idx'][-1]))
+                            print("Number frame: " + str(len(previous_data['frame'])))
+                            print("Number bounding box: " + str(len(previous_data['human_boxes'][-1])))
+                            print("Number pose: " + str(len(previous_data['human_poses'][-1])))
+                            print("\n")
 
                     previous_data['idx'].append(frame_index)
                     previous_data['frame'].append(frame)
@@ -598,11 +606,13 @@ class SimpleABDetector:
             self.event_start_time = timedelta(seconds=self.event_start_time / 30)
             self.event_end_time = timedelta(seconds=self.event_end_time / 30)
 
-        print("Video summary:")
-        print(f"Video path: {self.data_infor['video_path']}")
-        print(f"Type of event: {self.event_type}")
-        print(f"Start time of events: {self.event_start_time}")
-        print(f"End time of events: {self.event_end_time}")
+        if self.debug:
+            print("=====================================================================================")
+            print("Video summary:")
+            print(f"Video path: {self.data_infor['video_path']}")
+            print(f"Type of event: {self.event_type}")
+            print(f"Start time of events: {self.event_start_time}")
+            print(f"End time of events: {self.event_end_time}")
 
         cap.release()
         out.release()

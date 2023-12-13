@@ -4,8 +4,9 @@ from ILDetector import XMLInfo, ILDetector
 from SimpleABDetector import SimpleABDetector
 import os
 
-data_folder_path = "/home/lacie/Datasets/KISA/train/FireDetection/test"
+data_folder_path = "/home/lacie/Datasets/KISA/train/Falldown/test"
 output_folder_path = "/home/lacie/Datasets/KISA/results/output"
+pre_train_path = "/home/lacie/Github/AbnormalBehaviorRecognition/pre-train"
 
 def get_video_infor(data_folder_path, output_folder_path):
     xml_paths = [os.path.join(data_folder_path, file) for file in os.listdir(data_folder_path) if file.endswith(".xml")]
@@ -24,7 +25,7 @@ if __name__ == "__main__":
             detector = ILDetector(infor)
             detector.process_video()
         else:
-            detector = SimpleABDetector(infor)
+            detector = SimpleABDetector(infor, pretrain_path=pre_train_path)
             detector.process_video()
 
 

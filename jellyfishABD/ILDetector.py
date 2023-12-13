@@ -134,6 +134,10 @@ class ILDetector:
         if event_append:
             if self.data_infor['abnormal_type'] == 'Intrusion':
 
+                # draw abnormal area
+                area = np.array(self.data_infor['abnormal_area'])
+                cv2.polylines(frame, [area], True, (0, 0, 255), 2)
+                
                 if self.event_start_time is None:
                     self.event_start_time = current_time
 
