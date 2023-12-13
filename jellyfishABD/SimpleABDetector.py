@@ -17,8 +17,8 @@ class SimpleABDetector:
         self.data_infor = data_infor
         self.model = YOLO('/home/lacie/Github/AbnormalBehaviorRecognition/pre-train/yolov8x.pt')
         self.abnormal_detections = {}
-        self.fire_model = FireDetection(model_path="/home/lacie/Github/AbnormalBehaviorRecognition/pre-train/knn_model.pkl")
-        self.pose_model = KeyPoints(model_path="/home/lacie/Github/AbnormalBehaviorRecognition/pre-train/pose_resnext_100.pth")
+        self.fire_model = FireDetection(model_path="/home/lacie/Github/AbnormalBehaviorRecognition/pre-train/fire-yolov8.pt")
+        self.pose_model = KeyPoints(model_path="/home/lacie/Github/AbnormalBehaviorRecognition/pre-train/knn_model.pkl")
         # self.bag_model = AbandonmentDetector()
         self.event_start_time = None
         self.event_end_time = None
