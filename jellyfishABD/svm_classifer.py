@@ -13,7 +13,7 @@ from sklearn.metrics import classification_report
 Categories = ['fall', 'fight']
 flat_data_arr = []  # input array
 target_arr = []  # output array
-datadir = '/home/lacie/Github/AbnormalBehaviorRecognition/data/data_pose/images'
+datadir = '/home/lacie/Github/data_pose/'
 # path which contains all the categories of images
 for i in Categories:
     print(f'loading... category : {i}')

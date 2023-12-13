@@ -15,6 +15,14 @@ from torchvision import models
 import torch.nn as nn
 import torchvision
 
+import os
+from skimage.transform import resize
+from skimage.io import imread
+import matplotlib.pyplot as plt
+from skimage.color import rgb2gray
+import pickle
+from skimage.feature import hog
+
 classes = ['walk', 'fall', 'fight']
 
 PATH = '/home/lacie/Github/AbnormalBehaviorRecognition/jellyfishABD/model_16_m3_0.8888.pth'
@@ -23,6 +31,7 @@ class KeyPoints:
 
     def __init__(self, model_path=''):
         self.predictor = self.model()
+        self.classifier = self.knn_model(model_path)
         # self.classifier = models.resnext50_32x4d()
         # self.classifier.fc = nn.Sequential(
         #     nn.Linear(self.classifier.fc.in_features, 512),
@@ -39,6 +48,11 @@ class KeyPoints:
     def model(self, checkpoint="shufflenetv2k16"):
         predictor = openpifpaf.Predictor(checkpoint=checkpoint)
         return predictor
+    
+    def knn_model(self, model_path):
+        with open(model_path, 'rb') as f:
+            knn = pickle.load(f)
+        return knn
 
     def detectPoints(self, frame, box):
         crop = frame[box[1]:box[3], box[0]:box[2]]
@@ -58,14 +72,35 @@ class KeyPoints:
             predict[:, 1] += box[1]
 
         return predict, pose_type
+    
+    def predict_image(self, img):
+        # Load the image and extract HOG features
+        img_resized = resize(img, (150, 150, 3))
+        img_gray = rgb2gray(img_resized.reshape(150, 150, 3))
+        hog_features = hog(img_gray, orientations=9, pixels_per_cell=(8, 8), cells_per_block=(2, 2))
+
+        # Predict the class of the image
+        prediction = self.classifier.predict([hog_features])
+
+        return prediction
 
     def check_pose_type(self, keypoints, crop, box):
 
         print("BB: ", box)
 
-        if self.fall_detection2(keypoints, box):
+        # if self.fall_detection2(keypoints, box):
+        #     return 'fall'
+        # elif self.fight_detection(keypoints):
+        #     return 'fight'
+        # else:
+        #     return 'walk'
+
+        pred = self.predict_image(crop)
+        print(pred)
+
+        if pred == 0:
             return 'fall'
-        elif self.fight_detection(keypoints):
+        elif pred == 1:
             return 'fight'
         else:
             return 'walk'
@@ -285,11 +320,11 @@ def humanDetection(model, image):
     return tmpBB, conf
 
 if __name__ == "__main__":
-    keypoint = KeyPoints(model_path="/home/lacie/Github/AbnormalBehaviorRecognition/jellyfishABD/pose_resnext_400_epochs.pth")
+    keypoint = KeyPoints(model_path="/home/lacie/Github/AbnormalBehaviorRecognition/pre-train/knn_model.pkl")
 
-    video_folder_path = "/home/lacie/Videos/fall"
+    video_folder_path = "/home/lacie/Datasets/KISA/ver-4/walking/"
     label = "fight"
-
+                                     
     video_paths = [os.path.join(video_folder_path, file) for file in os.listdir(video_folder_path) if file.endswith(".mp4")]
     model = YOLO('/home/lacie/Github/AbnormalBehaviorRecognition/pre-train/yolov8x.pt')
 
@@ -332,4 +367,6 @@ if __name__ == "__main__":
 
         cap.release()
         cv2.destroyAllWindows()
+
+
 

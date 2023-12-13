@@ -17,7 +17,7 @@ class SimpleABDetector:
         self.data_infor = data_infor
         self.model = YOLO('/home/lacie/Github/AbnormalBehaviorRecognition/pre-train/yolov8x.pt')
         self.abnormal_detections = {}
-        self.fire_model = FireDetection(model_path="/home/lacie/Github/AbnormalBehaviorRecognition/pre-train/fire-yolov8.pt")
+        self.fire_model = FireDetection(model_path="/home/lacie/Github/AbnormalBehaviorRecognition/pre-train/knn_model.pkl")
         self.pose_model = KeyPoints(model_path="/home/lacie/Github/AbnormalBehaviorRecognition/pre-train/pose_resnext_100.pth")
         # self.bag_model = AbandonmentDetector()
         self.event_start_time = None
@@ -65,6 +65,24 @@ class SimpleABDetector:
             tmpBB.append(bbox)
 
         return tmpBB, conf
+    
+    def pose_type_fine_tune(self, human_boxes, pose_type):
+
+        for i in range(len(human_boxes)):
+            if pose_type[i] == 'fight':
+                if len(human_boxes[i]) < 2:
+                    pose_type[i] = 'walk'
+                else:
+                    min_dist = 100000
+                    for i in range(len(human_boxes)):
+                        for j in range(i+1, len(human_boxes)):
+                            dist = np.linalg.norm(np.array(human_boxes[i]) - np.array(human_boxes[j]))
+                            if dist < min_dist:
+                                min_dist = dist
+                    if min_dist > 100:
+                        pose_type[i] = 'walk'
+
+        return pose_type, human_boxes
 
     def detect_fire(self, frame):
         return self.fire_model.detect2(frame)
@@ -401,6 +419,8 @@ class SimpleABDetector:
                             pose, tp = self.pose_model.detectPoints(frame, box)
                             human_poses.append(pose)
                             pose_types.append(tp)
+                        pose_types, human_boxes = self.pose_type_fine_tune(human_boxes, pose_types)
+                            
                             # print(tp)
                         # Update tracker
                         objects = self.tracker.update(human_boxes)
