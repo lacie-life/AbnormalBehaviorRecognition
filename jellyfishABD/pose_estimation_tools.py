@@ -23,17 +23,17 @@ class KeyPoints:
 
     def __init__(self, model_path=''):
         self.predictor = self.model()
-        self.classifier = models.resnext50_32x4d()
-        self.classifier.fc = nn.Sequential(
-            nn.Linear(self.classifier.fc.in_features, 512),
-            nn.ReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(512, 3)
-        )
-        self.classifier.load_state_dict(torch.load(model_path))
-        self.classifier.eval()
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.classifier.to(self.device)
+        # self.classifier = models.resnext50_32x4d()
+        # self.classifier.fc = nn.Sequential(
+        #     nn.Linear(self.classifier.fc.in_features, 512),
+        #     nn.ReLU(),
+        #     nn.Dropout(0.2),
+        #     nn.Linear(512, 3)
+        # )
+        # self.classifier.load_state_dict(torch.load(model_path))
+        # self.classifier.eval()
+        # self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        # self.classifier.to(self.device)
 
 
     def model(self, checkpoint="shufflenetv2k16"):
@@ -61,7 +61,9 @@ class KeyPoints:
 
     def check_pose_type(self, keypoints, crop, box):
 
-        if self.fallDetection(keypoints, box):
+        print("BB: ", box)
+
+        if self.fall_detection2(keypoints, box):
             return 'fall'
         elif self.fight_detection(keypoints):
             return 'fight'
@@ -137,17 +139,23 @@ class KeyPoints:
         return False
 
     def drawPoints(self, frame, points):
+        idx = 0
         for point in points:
             cv2.circle(frame, (int(point[0]), int(point[1])), 5, (0, 0, 255), -1)
-
+            cv2.putText(frame, str(idx), (int(point[0]), int(point[1])), cv2.FONT_HERSHEY_SIMPLEX, 0.2, (0, 0, 255), 2)
+            idx += 1
         return frame
 
-    def fall_detection2(self, keypoints):
+    def fall_detection2(self, predict, box):
+        print("Fall check")
         # OpenPifPaf keypoints: [nose, left_eye, right_eye, left_ear, right_ear, left_shoulder, right_shoulder,
         # left_elbow, right_elbow, left_wrist, right_wrist, left_hip, right_hip, left_knee, right_knee, left_ankle, right_ankle]
 
-        if keypoints == [] or len(keypoints) < 11:
+        if predict == []:
+            keypoints = []
             return False
+        else:
+            keypoints = predict[0].data[:, :2]
 
         # Extract keypoints
         left_hip = keypoints[11]
@@ -156,23 +164,49 @@ class KeyPoints:
         right_knee = keypoints[14]
         left_ankle = keypoints[15]
         right_ankle = keypoints[16]
+        nose = keypoints[0]
 
         # Calculate angles
         left_leg_angle = self.calculate_angle(left_hip, left_knee, left_ankle)
         right_leg_angle = self.calculate_angle(right_hip, right_knee, right_ankle)
 
-        # If the angles are less than a threshold (say, 30 degrees), the person might have fallen
-        if left_leg_angle < 30 or right_leg_angle < 30:
+        # Calculate angle between torso and legs
+        left_torso_leg_angle = self.calculate_angle(left_hip, nose, left_ankle)
+        right_torso_leg_angle = self.calculate_angle(right_hip, nose, right_ankle)
+
+        # Calculate distance between head and feet
+        head_left_foot_dist = np.linalg.norm(nose - left_ankle)
+        head_right_foot_dist = np.linalg.norm(nose - right_ankle)
+
+        # Calculate bounding box aspect ratio
+        bb_width = box[2] - box[0]
+        bb_height = box[3] - box[1]
+        aspect_ratio = bb_width / bb_height
+
+        print("left_leg_angle: " + str(left_leg_angle))
+        print("right_leg_angle: " + str(right_leg_angle))
+        print("left_torso_leg_angle: " + str(left_torso_leg_angle))
+        print("right_torso_leg_angle: " + str(right_torso_leg_angle))
+        print("head_left_foot_dist: " + str(head_left_foot_dist))
+        print("head_right_foot_dist: " + str(head_right_foot_dist))
+        print("aspect_ratio: " + str(aspect_ratio))
+
+        # If the leg angles are less than a threshold (say, 30 degrees), or the torso-leg angles are greater than a threshold (say, 150 degrees), or the head-foot distance is greater than a threshold (say, 100 units), or the aspect ratio is greater than 1, the person might have fallen
+        if left_leg_angle < 30 or right_leg_angle < 30 or left_torso_leg_angle > 150 or aspect_ratio > 1:
             return True
 
         return False
 
-    def fight_detection(self, keypoints):
+    def fight_detection(self, predict):
+        print("Fight check")
         # OpenPifPaf keypoints: [nose, left_eye, right_eye, left_ear, right_ear, left_shoulder, right_shoulder,
         # left_elbow, right_elbow, left_wrist, right_wrist, left_hip, right_hip, left_knee, right_knee, left_ankle, right_ankle]
 
-        if keypoints == [] or len(keypoints) < 11:
+        if predict == []:
+            keypoints = []
             return False
+        else:
+            keypoints = predict[0].data[:, :2]
 
         # Extract keypoints
         left_wrist = keypoints[9]
@@ -180,21 +214,41 @@ class KeyPoints:
         nose = keypoints[0]
         left_shoulder = keypoints[5]
         right_shoulder = keypoints[6]
+        left_elbow = keypoints[7]
+        right_elbow = keypoints[8]
 
         # Calculate distances
         left_hand_head_dist = np.linalg.norm(left_wrist - nose)
         right_hand_head_dist = np.linalg.norm(right_wrist - nose)
         left_hand_body_dist = np.linalg.norm(left_wrist - left_shoulder)
         right_hand_body_dist = np.linalg.norm(right_wrist - right_shoulder)
+        left_hand_upperbody_dist = np.linalg.norm(left_wrist - left_elbow)
+        right_hand_upperbody_dist = np.linalg.norm(right_wrist - right_elbow)
 
         # Calculate angles
         left_angle = self.calculate_angle(left_wrist, nose, left_shoulder)
         right_angle = self.calculate_angle(right_wrist, nose, right_shoulder)
 
+        # Calculate bounding box aspect ratio
+        bb_width = box[2] - box[0]
+        bb_height = box[3] - box[1]
+        aspect_ratio = bb_width / bb_height
+
+        print("left_hand_head_dist: " + str(left_hand_head_dist))
+        print("right_hand_head_dist: " + str(right_hand_head_dist))
+        print("left_hand_body_dist: " + str(left_hand_body_dist))
+        print("right_hand_body_dist: " + str(right_hand_body_dist))
+        print("left_angle: " + str(left_angle))
+        print("right_angle: " + str(right_angle))
+
         # If the distances and angles are less than a threshold (say, 30 units and 30 degrees), the person might be fighting
-        if (left_hand_head_dist < 30 or right_hand_head_dist < 30) and (
-                left_hand_body_dist < 30 or right_hand_body_dist < 30) and (left_angle < 30 or right_angle < 30):
+        if (left_hand_head_dist < 50 or right_hand_head_dist < 50) and (
+                left_hand_body_dist < 50 or right_hand_body_dist < 50) and (left_angle < 50 or right_angle < 50) and (
+                (left_hand_upperbody_dist > 50 or right_hand_upperbody_dist > 50)) and aspect_ratio < 1:
             return True
+        if left_wrist[1] > nose[1] or right_wrist[1] > nose[1] and aspect_ratio < 1:
+            return True
+
 
         return False
 
@@ -233,16 +287,16 @@ def humanDetection(model, image):
 if __name__ == "__main__":
     keypoint = KeyPoints(model_path="/home/lacie/Github/AbnormalBehaviorRecognition/jellyfishABD/pose_resnext_400_epochs.pth")
 
-    video_folder_path = "/home/lacie/Datasets/KISA/train/Violence/test"
+    video_folder_path = "/home/lacie/Videos/fall"
     label = "fight"
 
     video_paths = [os.path.join(video_folder_path, file) for file in os.listdir(video_folder_path) if file.endswith(".mp4")]
     model = YOLO('/home/lacie/Github/AbnormalBehaviorRecognition/pre-train/yolov8x.pt')
 
-    out_folder_path = "/home/lacie/Github/AbnormalBehaviorRecognition/final/data_pose/fight/"
-
-    if not os.path.exists(out_folder_path):
-        os.makedirs(out_folder_path)
+    # out_folder_path = "/home/lacie/Videos/data_pose/fight3/"
+    #
+    # if not os.path.exists(out_folder_path):
+    #     os.makedirs(out_folder_path)
 
     count = 0
     print(video_paths)
@@ -255,20 +309,26 @@ if __name__ == "__main__":
         while True:
             ret, frame = cap.read()
             if ret:
-                bb = humanDetection(model, frame)
-                if bb[0] != []:
-                    for box in bb[0]:
-                        points, pose_type = keypoint.detectPoints(frame, box)
-                        if len(points) > 0:
-                            frame = keypoint.drawPoints(frame, points)
-                        cv2.putText(frame, pose_type, (box[0], box[1]), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+                if frame_count % 1 == 0:
+                    bb = humanDetection(model, frame)
+                    if bb[0] != []:
+                        for box in bb[0]:
+                            # crop = frame[box[1]:box[3], box[0]:box[2]]
+                            # cv2.imwrite(out_folder_path + str(count) + ".jpg", crop)
+                            # count += 1
+                            points, pose_type = keypoint.detectPoints(frame, box)
+                            if len(points) > 0:
+                                frame = keypoint.drawPoints(frame, points)
+                            cv2.putText(frame, pose_type, (box[0], box[1]), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
             else:
                 break
             frame_count += 1
             print(frame_count)
             cv2.putText(frame, f'Frame: {str(frame_count)}', (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
             cv2.imshow("frame", frame)
-            cv2.waitKey(1)
+            cv2.waitKey(0)
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
 
         cap.release()
         cv2.destroyAllWindows()

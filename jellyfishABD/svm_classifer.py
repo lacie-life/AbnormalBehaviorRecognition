@@ -37,11 +37,10 @@ x = df.iloc[:, :-1]
 # output data
 y = df.iloc[:, -1]
 
-
 # Splitting the data into training and testing sets
-x_train,x_test,y_train,y_test=train_test_split(x,y,test_size=0.20,
-                                               random_state=77,
-                                               stratify=y)
+x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.20,
+                                                    random_state=77,
+                                                    stratify=y)
 
 # Defining the parameters grid for GridSearchCV
 param_grid = {'C': [0.1, 1, 10, 100],
@@ -54,9 +53,8 @@ svc = svm.SVC(probability=True)
 # Creating a model using GridSearchCV with the parameters grid
 model = GridSearchCV(svc, param_grid)
 
-
 # Training the model using the training data
-model.fit(x_train,y_train)
+model.fit(x_train, y_train)
 
 # Testing the model using the testing data
 y_pred = model.predict(x_test)
@@ -66,4 +64,3 @@ accuracy = accuracy_score(y_pred, y_test)
 
 # Print the accuracy of the model
 print(f"The model is {accuracy * 100}% accurate")
-
