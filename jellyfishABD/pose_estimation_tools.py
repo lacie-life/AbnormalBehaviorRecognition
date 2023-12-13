@@ -13,8 +13,11 @@ import joblib
 import torch
 from torchvision import models
 import torch.nn as nn
+import torchvision
 
 classes = ['walk', 'fall', 'fight']
+
+PATH = '/home/lacie/Github/AbnormalBehaviorRecognition/jellyfishABD/model_16_m3_0.8888.pth'
 
 class KeyPoints:
 
@@ -31,6 +34,7 @@ class KeyPoints:
         self.classifier.eval()
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.classifier.to(self.device)
+
 
     def model(self, checkpoint="shufflenetv2k16"):
         predictor = openpifpaf.Predictor(checkpoint=checkpoint)
@@ -59,36 +63,40 @@ class KeyPoints:
 
         if self.fallDetection(keypoints, box):
             return 'fall'
-
-        rect = crop.copy()
-        crop = cv2.resize(crop, (224, 224))
-        crop = torch.from_numpy(crop).float().to(self.device)  # Convert to tensor
-        crop = crop.unsqueeze(0) 
-        crop = crop.permute(0, 3, 1, 2)
-
-        predicted = self.classifier(crop)
-        cls_index = predicted.argmax(dim=1)
-        cls_prob = nn.functional.softmax(predicted, dim=1)
-
-        pred_prob = cls_prob[0][cls_index].item()
-        pred_class = classes[cls_index]
-
-        print(predicted, pred_class, pred_prob)
-        # pred_class = pred_class.cpu().numpy()[0]
-        print("Pose type: " + str(pred_class))
-
-        print(rect.shape)
-
-        if pred_class == 0: 
-            return 'walk'
-        elif pred_class == 2:
-            return 'fall'
-        elif pred_class == 1: 
+        elif self.fight_detection(keypoints):
             return 'fight'
-        elif rect.shape[0] < rect.shape[1]:
-            return 'fall'
         else:
-            return 'unknown'
+            return 'walk'
+
+        # rect = crop.copy()
+        # crop = cv2.resize(crop, (224, 224))
+        # crop = torch.from_numpy(crop).float().to(self.device)  # Convert to tensor
+        # crop = crop.unsqueeze(0)
+        # crop = crop.permute(0, 3, 1, 2)
+        #
+        # predicted = self.classifier(crop)
+        # cls_index = predicted.argmax(dim=1)
+        # cls_prob = nn.functional.softmax(predicted, dim=1)
+        #
+        # pred_prob = cls_prob[0][cls_index].item()
+        # pred_class = classes[cls_index]
+        #
+        # print(predicted, pred_class, pred_prob)
+        # # pred_class = pred_class.cpu().numpy()[0]
+        # print("Pose type: " + str(pred_class))
+        #
+        # print(rect.shape)
+        #
+        # if pred_class == 0:
+        #     return 'walk'
+        # elif pred_class == 2:
+        #     return 'fall'
+        # elif pred_class == 1:
+        #     return 'fight'
+        # elif rect.shape[0] < rect.shape[1]:
+        #     return 'fall'
+        # else:
+        #     return 'unknown'
 
     def fallDetection(self, predict, box):
         # OpenPifPaf keypoints: [nose, left_eye, right_eye, left_ear, right_ear, left_shoulder, right_shoulder,
@@ -134,6 +142,72 @@ class KeyPoints:
 
         return frame
 
+    def fall_detection2(self, keypoints):
+        # OpenPifPaf keypoints: [nose, left_eye, right_eye, left_ear, right_ear, left_shoulder, right_shoulder,
+        # left_elbow, right_elbow, left_wrist, right_wrist, left_hip, right_hip, left_knee, right_knee, left_ankle, right_ankle]
+
+        if keypoints == [] or len(keypoints) < 11:
+            return False
+
+        # Extract keypoints
+        left_hip = keypoints[11]
+        right_hip = keypoints[12]
+        left_knee = keypoints[13]
+        right_knee = keypoints[14]
+        left_ankle = keypoints[15]
+        right_ankle = keypoints[16]
+
+        # Calculate angles
+        left_leg_angle = self.calculate_angle(left_hip, left_knee, left_ankle)
+        right_leg_angle = self.calculate_angle(right_hip, right_knee, right_ankle)
+
+        # If the angles are less than a threshold (say, 30 degrees), the person might have fallen
+        if left_leg_angle < 30 or right_leg_angle < 30:
+            return True
+
+        return False
+
+    def fight_detection(self, keypoints):
+        # OpenPifPaf keypoints: [nose, left_eye, right_eye, left_ear, right_ear, left_shoulder, right_shoulder,
+        # left_elbow, right_elbow, left_wrist, right_wrist, left_hip, right_hip, left_knee, right_knee, left_ankle, right_ankle]
+
+        if keypoints == [] or len(keypoints) < 11:
+            return False
+
+        # Extract keypoints
+        left_wrist = keypoints[9]
+        right_wrist = keypoints[10]
+        nose = keypoints[0]
+        left_shoulder = keypoints[5]
+        right_shoulder = keypoints[6]
+
+        # Calculate distances
+        left_hand_head_dist = np.linalg.norm(left_wrist - nose)
+        right_hand_head_dist = np.linalg.norm(right_wrist - nose)
+        left_hand_body_dist = np.linalg.norm(left_wrist - left_shoulder)
+        right_hand_body_dist = np.linalg.norm(right_wrist - right_shoulder)
+
+        # Calculate angles
+        left_angle = self.calculate_angle(left_wrist, nose, left_shoulder)
+        right_angle = self.calculate_angle(right_wrist, nose, right_shoulder)
+
+        # If the distances and angles are less than a threshold (say, 30 units and 30 degrees), the person might be fighting
+        if (left_hand_head_dist < 30 or right_hand_head_dist < 30) and (
+                left_hand_body_dist < 30 or right_hand_body_dist < 30) and (left_angle < 30 or right_angle < 30):
+            return True
+
+        return False
+
+    def calculate_angle(self, a, b, c):
+        # Calculates the angle between points a, b, and c
+        ba = a - b
+        bc = c - b
+
+        cosine_angle = np.dot(ba, bc) / (np.linalg.norm(ba) * np.linalg.norm(bc))
+        angle = np.arccos(cosine_angle)
+
+        return np.degrees(angle)
+
 def humanDetection(model, image):
     # objects = self.model(frame).xyxy[0]
     objects = model.predict(frame, classes=[0])
@@ -157,7 +231,7 @@ def humanDetection(model, image):
     return tmpBB, conf
 
 if __name__ == "__main__":
-    keypoint = KeyPoints(model_path="/home/lacie/Github/AbnormalBehaviorRecognition/pose_resnext_50_epochs.pth")
+    keypoint = KeyPoints(model_path="/home/lacie/Github/AbnormalBehaviorRecognition/jellyfishABD/pose_resnext_400_epochs.pth")
 
     video_folder_path = "/home/lacie/Datasets/KISA/train/Violence/test"
     label = "fight"
@@ -192,6 +266,7 @@ if __name__ == "__main__":
                 break
             frame_count += 1
             print(frame_count)
+            cv2.putText(frame, f'Frame: {str(frame_count)}', (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
             cv2.imshow("frame", frame)
             cv2.waitKey(1)
 

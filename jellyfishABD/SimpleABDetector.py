@@ -52,8 +52,6 @@ class SimpleABDetector:
 
         humanObjects = objects[0].boxes.data
 
-        # print(humanObjects)
-
         tmpBB = []
         conf = []
         tmp = []
@@ -163,7 +161,7 @@ class SimpleABDetector:
             # print(human)
 
             count = 0
-            for indx in range(80, len(previous_data['frame'])):
+            for indx in range(70, len(previous_data['frame'])):
                 bb = self.detect_fire(previous_data['frame'][indx])
                 # print(bb)
                 if len(bb) > 0:
@@ -437,7 +435,7 @@ class SimpleABDetector:
                             self.tmpEvent = None
                             self.tmpEventTime = 0
                             print("Abandonment Detected: " + str(frame_index))
-                            exit(0)
+                            # exit(0)
 
                     # Check fire
                     if self.event_start_time is None and self.event_type is None:
@@ -478,7 +476,7 @@ class SimpleABDetector:
                             self.tmpEvent = None
                             self.tmpEventTime = 0
                             print("Fall down Detected: " + str(frame_index))
-                            exit(0)
+                            # exit(0)
                     elif self.event_start_time is not None and self.event_type == 'Falldown':
                         check_fall = self.check_fall(previous_data, frame, background_score, background_image, started=True)
                         if check_fall == 'end':
@@ -501,7 +499,7 @@ class SimpleABDetector:
                             self.tmpEvent = None
                             self.tmpEventTime = 0
                             print("Fight Detected: " + str(frame_index))
-                            exit(0)
+                            # exit(0)
                     elif self.event_start_time is not None and self.event_type == 'Violence':
                         check_fight = self.check_fight(previous_data, frame, background_score, background_image, started=True)
                         if not check_fight:
