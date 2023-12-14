@@ -276,11 +276,16 @@ class SimpleABDetector:
                     human = True
                     break
             # print(diff)
-
-            if human and diff_background > 50 and fa_count > 30:
-            # if human and diff_background > 50 and mean_diff < background_score + background_score * 0.02 and mean_diff > background_score - background_score * 0.05 and fa_count > 10:
-                print("Fall Detected")
-                return 'start'
+            if len(previous_data['human_boxes'][-1]) > 1:
+                if human and diff_background > 50 and fa_count > 30 * (len(previous_data['human_boxes'][-1]) - 2):
+                # if human and diff_background > 50 and mean_diff < background_score + background_score * 0.02 and mean_diff > background_score - background_score * 0.05 and fa_count > 10:
+                    print("Fall Detected")
+                    return 'start'
+            else:
+                if human and diff_background > 50 and fa_count > 30:
+                # if human and diff_background > 50 and mean_diff < background_score + background_score * 0.02 and mean_diff > background_score - background_score * 0.05 and fa_count > 10:
+                    print("Fall Detected")
+                    return 'start'
         else:
             human = False
             for bb in previous_data['human_boxes']:
@@ -288,7 +293,7 @@ class SimpleABDetector:
                     human = True
                     break
             # print(diff)
-            if human and diff_background > 50 and mean_diff > background_score + background_score * 0.05 and fa_count < 10:
+            if human and diff_background > 50 and mean_diff > background_score + background_score * 0.05 and fa_count < 10 :
                 print("Fall Detected End")
                 return 'end'
 
@@ -338,18 +343,28 @@ class SimpleABDetector:
             #                 break
 
             # if human and diff > background_score + background_score * 0.2 and f_count > 30:
-            if human and f_count > 30 and diff_background > 50 and fight_check: 
-                print("Fight Detected")
-                return 'start'
+            if len(previous_data['human_boxes'][-1]) > 1:
+                if human and f_count > 30 * (len(previous_data['human_boxes'][-1]) - 1) and diff_background > 50 and fight_check: 
+                    print("Fight Detected")
+                    return 'start'
+            else:
+                if human and f_count > 30 and diff_background > 50 and fight_check: 
+                    print("Fight Detected")
+                    return 'start'
         else:
             human = False
             for bb in previous_data['human_boxes']:
                 if len(bb) > 0:
                     human = True
                     break
-            if human and s_count > 30 and f_count < 10:
-                print("Fight Detected End")
-                return 'end'
+            if len(previous_data['human_boxes'][-1]) > 1:
+                if human and s_count > 30 * (len(previous_data['human_boxes'][-1]) - 1) and f_count < 10:
+                    print("Fight Detected End")
+                    return 'end'
+            else:
+                if human and s_count > 30 and f_count < 10:
+                    print("Fight Detected End")
+                    return 'end'
 
     def process_video(self):
 
@@ -502,7 +517,7 @@ class SimpleABDetector:
                             self.tmpEvent = None
                             self.tmpEventTime = 0
                             print("Abandonment Detected: " + str(frame_index))
-                            exit(0)
+                            # exit(0)
 
                     # Check fire
                     if self.event_start_time is None and self.event_type is None:
@@ -520,7 +535,7 @@ class SimpleABDetector:
                             self.tmpEvent = None
                             self.tmpEventTime = 0
                             print("Fire Detected: " + str(frame_index))
-                            exit(0)
+                            # exit(0)
                     elif self.event_start_time is not None and self.event_type == 'FireDetection':
                         check_fire = self.check_fire(previous_data, frame, background_score, background_image, started=True)
                         if not check_fire == 'end':
@@ -543,7 +558,7 @@ class SimpleABDetector:
                             self.tmpEvent = None
                             self.tmpEventTime = 0
                             print("Fall down Detected: " + str(frame_index))
-                            exit(0)
+                            # exit(0)
                     elif self.event_start_time is not None and self.event_type == 'Falldown':
                         check_fall = self.check_fall(previous_data, frame, background_score, background_image, started=True)
                         if check_fall == 'end':
@@ -566,7 +581,7 @@ class SimpleABDetector:
                             self.tmpEvent = None
                             self.tmpEventTime = 0
                             print("Fight Detected: " + str(frame_index))
-                            exit(0)
+                            # exit(0)
                     elif self.event_start_time is not None and self.event_type == 'Violence':
                         check_fight = self.check_fight(previous_data, frame, background_score, background_image, started=True)
                         if not check_fight:
