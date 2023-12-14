@@ -295,7 +295,7 @@ class SimpleABDetector:
                     human = True
                     break
             # print(diff)
-            if (human and diff_background > 50 and mean_diff > background_score + background_score * 0.05 and fa_count < 10) or not human:
+            if (human and diff_background > 50 and mean_diff > background_score + background_score * 0.05 and fa_count < 10):
                 print("Fall Detected End")
                 return 'end'
 
@@ -364,7 +364,7 @@ class SimpleABDetector:
                     print("Fight Detected End")
                     return 'end'
             else:
-                if (human and (s_count > 30 or f_count < 10)) or not human:
+                if (human and (s_count > 30 or f_count < 10)):
                     print("Fight Detected End")
                     return 'end'
 
