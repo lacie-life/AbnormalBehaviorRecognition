@@ -8,8 +8,9 @@ Abnormal Behavior Recognition
     - [x] Remove background
     - [x] Create label
     - [x] Pose estimation label
-    - [x] Create data loader
-- [ ] Choose models
+    - [x] Create data loaders
+- [x] Choose models
+    - [x] Object detection (yolov8x)
     - [x] Pose estimation model (resnext50 with 3 class walk, fall, fight)
     - [x] Fire detection model (yolov8, low accuracy)
     - [x] Processing strategy 
