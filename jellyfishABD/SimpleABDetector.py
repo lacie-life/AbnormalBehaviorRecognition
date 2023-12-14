@@ -13,7 +13,7 @@ from skimage.metrics import structural_similarity as ssim
 MAX_DIFF = 100000
 
 class SimpleABDetector:
-    def __init__(self, data_infor, debug=True, pretrain_path=None, vis=False):
+    def __init__(self, data_infor, debug=True, pretrain_path=None, visual=False):
         self.data_infor = data_infor
         self.model = YOLO(pretrain_path + '/yolov8x.pt')
         self.abnormal_detections = {}
@@ -34,7 +34,7 @@ class SimpleABDetector:
         self.preTmpEnvent = None
         self.tmpEventTime = 0
         self.debug = debug
-        self.vis = vis
+        self.vis = visual
 
     def export_to_xml(self):
         root = ET.Element("root")
@@ -87,7 +87,28 @@ class SimpleABDetector:
 
         return pose_type, human_boxes
 
-    def detect_fire(self, frame):
+    def detect_fire(self, frame, boxes, mode='model'):
+        if mode == 'model':
+            bb = boxes[0]
+            new_bb = [bb[0] - 30, bb[1] - 30, bb[2] + 30, bb[3] + 30]
+
+            if new_bb[0] < 0:
+                new_bb[0] = 0
+            if new_bb[1] < 0:
+                new_bb[1] = 0
+            if new_bb[2] > frame.shape[1]:
+                new_bb[2] = frame.shape[1]
+            if new_bb[3] > frame.shape[0]:
+                new_bb[3] = frame.shape[0]
+
+            crop = frame[new_bb[1]:new_bb[3], new_bb[0]:new_bb[2]]
+
+            return self.fire_model.detect2(crop)
+        # else:
+        #     original_frame = frame.copy()
+        #     gray = cv2.cvtColor(original_frame, cv2.COLOR_BGR2GRAY)
+        #     (minVal, maxVal, minLoc, maxLoc) = cv2.minMaxLoc(gray)
+        #     print(maxVal)
         return self.fire_model.detect2(frame)
 
     def calculate_diff_frame(self, set_frames, frame, metric='mse', flag='frame'):
@@ -188,7 +209,7 @@ class SimpleABDetector:
 
             count = 0
             for indx in range(70, len(previous_data['frame'])):
-                bb = self.detect_fire(previous_data['frame'][indx])
+                bb = self.detect_fire(previous_data['frame'][indx], previous_data['human_boxes'][indx])
                 # print(bb)
                 if len(bb) > 0:
                     count += 1
@@ -198,7 +219,7 @@ class SimpleABDetector:
                 # Re check fire
                 # print(diff_background)
                 print("Fire frame: " + str(count))
-                if count > 30 and diff_background > 50:
+                if count > 20 and diff_background > 50:
                     print("Fire Detected")
                     if self.debug:
                         print("Current: " + str(diff))
@@ -501,7 +522,7 @@ class SimpleABDetector:
                     elif self.event_start_time is not None and self.event_type == 'FireDetection':
                         check_fire = self.check_fire(previous_data, frame, background_score, background_image, started=True)
                         if not check_fire == 'end':
-                            self.event_end_time = frame_index
+                            self.event_end_time = frame_index + self.window_size
                             self.event_type_vis = 'Normal'
 
                     # Check fall down

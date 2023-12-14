@@ -22,6 +22,15 @@ class FireDetection:
 
     def detect(self, img):
 
+        orig = img.copy()
+        gray = cv2.cvtColor(orig, cv2.COLOR_BGR2GRAY)
+        (minVal, maxVal, minLoc, maxLoc) = cv2.minMaxLoc(gray)
+        print("Max: " + str(maxVal))
+        print("Min: " + str(minVal))
+
+        if maxVal > 200 and minVal < 10:
+            print("Fire detected")
+
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         img = Image.fromarray(img.astype('uint8'))
         orig = img.copy()
@@ -58,6 +67,16 @@ class FireDetection:
         return orig, class_no, co
 
     def detect2(self, img):
+
+        # orig = img.copy()
+        # gray = cv2.cvtColor(orig, cv2.COLOR_BGR2GRAY)
+        # (minVal, maxVal, minLoc, maxLoc) = cv2.minMaxLoc(gray)
+        # print("Max: " + str(maxVal))
+        # print("Min: " + str(minVal))
+
+        # if maxVal > 200 and minVal < 10:
+        #     print("Fire detected")
+
         objects = self.model.predict(img, classes=[0], verbose=False, conf=0.5)
         fireObjects = objects[0].boxes.data
 
@@ -68,24 +87,75 @@ class FireDetection:
             # print(fireObjects[i].tolist())
 
         return tmpBB
+    
+def humanDetection(model, image):
+    # objects = self.model(frame).xyxy[0]
+    objects = model.predict(image, classes=[0], verbose=False)
+
+    humanObjects = objects[0].boxes.data
+
+    # print(humanObjects)
+
+    tmpBB = []
+    conf = []
+    tmp = []
+
+    for obj in humanObjects:
+        if obj[5] == 0:
+            tmp.append(obj)
+
+    for obj in tmp:
+        bbox = [int(obj[0]), int(obj[1]), int(obj[2]), int(obj[3])]
+        tmpBB.append(bbox)
+
+    return tmpBB, conf
 
 
 if __name__ == "__main__":
-    model_path = "/home/lacie/Github/AbnormalBehaviorRecognition/jellyfishABD/fire-yolov8.pt"
+    model_path = "/home/lacie/Github/AbnormalBehaviorRecognition/pre-train/fire-yolov8.pt"
     fire_detection = FireDetection(model_path=model_path)
+    model = YOLO('/home/lacie/Github/AbnormalBehaviorRecognition/pre-train/yolov8x.pt')
 
-    video_path = "/home/lacie/Datasets/KISA/train/Abandonment/test/C096102_001.mp4"
+    video_path = "/home/lacie/Datasets/KISA/train/FireDetection/test/C002100_006.mp4"
     cap = cv2.VideoCapture(video_path)
+    frame_count = 0
     while True:
         ret, img = cap.read()
         if not ret:
             break
-        bb = fire_detection.detect2(img)
+        human_bb, conf = humanDetection(model, img)
 
-        for i in range(len(bb)):
-            cv2.rectangle(img, (int(bb[i][0]), int(bb[i][1])), (int(bb[i][2]), int(bb[i][3])), (0, 255, 0), 2)
-            cv2.putText(img, str(bb[i][4]), (int(bb[i][0]), int(bb[i][1])), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
+        if len(human_bb) > 0:
+            for bb in human_bb:
+                cv2.rectangle(img, (int(bb[0]), int(bb[1])), (int(bb[2]), int(bb[3])), (255, 0, 0), 2)
+                
+                new_bb = [bb[0] - 30, bb[1] - 30, bb[2] + 30, bb[3] + 30]
 
+                if new_bb[0] < 0:
+                    new_bb[0] = 0
+                if new_bb[1] < 0:
+                    new_bb[1] = 0
+                if new_bb[2] > img.shape[1]:
+                    new_bb[2] = img.shape[1]
+                if new_bb[3] > img.shape[0]:
+                    new_bb[3] = img.shape[0]
+
+                crop = img[new_bb[1]:new_bb[3], new_bb[0]:new_bb[2]]
+
+                bb = fire_detection.detect2(crop)
+
+                cv2.rectangle(img, (int(new_bb[0]), int(new_bb[1])), (int(new_bb[2]), int(new_bb[3])), (255, 0, 0), 2)
+
+                for i in range(len(bb)):
+                    bb[i][0] = bb[i][0] + new_bb[0]
+                    bb[i][1] = bb[i][1] + new_bb[1]
+                    bb[i][2] = bb[i][2] + new_bb[0]
+                    bb[i][3] = bb[i][3] + new_bb[1]
+                    cv2.rectangle(img, (int(bb[i][0]), int(bb[i][1])), (int(bb[i][2]), int(bb[i][3])), (0, 255, 0), 2)
+                    cv2.putText(img, str(bb[i][4]), (int(bb[i][0]), int(bb[i][1])), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
+        frame_count += 1
+        if frame_count % 100 == 0:
+            print(frame_count)
         cv2.imshow("img", img)
 
         cv2.waitKey(1)
