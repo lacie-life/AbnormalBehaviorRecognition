@@ -22,6 +22,7 @@ class SimpleABDetector:
         # self.bag_model = AbandonmentDetector()
         self.event_start_time = None
         self.event_end_time = None
+        self.duration = None
         self.event_type = None
         self.event_type_vis = None
         self.draw = True
@@ -44,6 +45,7 @@ class SimpleABDetector:
         ET.SubElement(root, "Type").text = self.event_type
         ET.SubElement(root, "StartTime").text = str(self.event_start_time)
         ET.SubElement(root, "EndTime").text = str(self.event_end_time)
+        ET.SubElement(root, "Duration").text = str(self.duration)
         tree = ET.ElementTree(root)
         tree.write(self.data_infor["output"] + f"/{video_name}_result.xml")
 
@@ -293,7 +295,7 @@ class SimpleABDetector:
                     human = True
                     break
             # print(diff)
-            if human and diff_background > 50 and mean_diff > background_score + background_score * 0.05 and fa_count < 10 :
+            if (human and diff_background > 50 and mean_diff > background_score + background_score * 0.05 and fa_count < 10) or not human:
                 print("Fall Detected End")
                 return 'end'
 
@@ -362,7 +364,7 @@ class SimpleABDetector:
                     print("Fight Detected End")
                     return 'end'
             else:
-                if human and s_count > 30 and f_count < 10:
+                if (human and (s_count > 30 or f_count < 10)) or not human:
                     print("Fight Detected End")
                     return 'end'
 
@@ -660,8 +662,10 @@ class SimpleABDetector:
         if self.event_start_time is None:
             self.event_start_time = 0
         if self.event_end_time is not None and self.event_start_time is not None:
+            self.duration = self.event_end_time - self.event_start_time
             self.event_start_time = timedelta(seconds=self.event_start_time / 30)
             self.event_end_time = timedelta(seconds=self.event_end_time / 30)
+            self.duration = timedelta(seconds=self.duration / 30)
 
         if self.debug:
             print("=====================================================================================")
@@ -670,6 +674,7 @@ class SimpleABDetector:
             print(f"Type of event: {self.event_type}")
             print(f"Start time of events: {self.event_start_time}")
             print(f"End time of events: {self.event_end_time}")
+            print(f"Duration of events: {self.duration}")
 
         cap.release()
         out.release()

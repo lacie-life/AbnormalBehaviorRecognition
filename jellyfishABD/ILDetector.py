@@ -68,6 +68,7 @@ class ILDetector:
         self.debug = debug
         self.visual = visual
         self.event_state = False
+        self.duration = None
 
     def detect_human(self, frame):
         # objects = self.model(frame).xyxy[0]
@@ -175,6 +176,7 @@ class ILDetector:
         ET.SubElement(root, "Type").text = self.data_infor["abnormal_type"]
         ET.SubElement(root, "StartTime").text = str(self.event_start_time)
         ET.SubElement(root, "EndTime").text = str(self.event_end_time)
+        ET.SubElement(root, "Duration").text = str(self.duration)
         tree = ET.ElementTree(root)
         tree.write(self.data_infor["output"] + f"/{video_name}_result.xml")
 
@@ -218,8 +220,15 @@ class ILDetector:
         result.release()
 
         # convert to video time
+        if self.event_start_time is None:
+            self.event_start_time = 0
+        if self.event_end_time is None:
+            self.event_end_time = frame_count
+
+        self.duration = self.event_end_time - self.event_start_time
         self.event_start_time = timedelta(seconds=self.event_start_time / 30)
         self.event_end_time = timedelta(seconds=self.event_end_time / 30)
+        self.duration = timedelta(seconds=self.duration / 30)
 
         if self.debug:
             print("Video summary:")
@@ -227,6 +236,7 @@ class ILDetector:
             print(f"Type of event: {self.data_infor['abnormal_type']}")
             print(f"Start time of events: {self.event_start_time}")
             print(f"End time of events: {self.event_end_time}")
+            print(f"Duration of events: {self.duration}")
 
         # Export to xml file
         self.export_to_xml()
