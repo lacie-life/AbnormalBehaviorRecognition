@@ -73,7 +73,7 @@ class SimpleABDetector:
         for i in range(len(human_boxes)):
             print("Fine tune:" + pose_type[i])
             if pose_type[i] == 'fight':
-                if len(human_boxes[i]) < 2:
+                if len(human_boxes) < 2:
                     pose_type[i] = 'walk'
                 else:
                     min_dist = 100000
@@ -178,7 +178,7 @@ class SimpleABDetector:
 
     def check_fire(self, previous_data, frame, background_score, background_image, started=False):
 
-        if len(previous_data['human_boxes']) > 1:
+        if len(previous_data['human_boxes'][-1]) > 1:
             return False
 
         diff = 0.0
@@ -205,11 +205,13 @@ class SimpleABDetector:
                 print("=====================================================================================")
                 print(diff)
                 print(diff_background)
-                # print(human)
+                # print(len(previous_data['human_boxes']))
+                # print(len(previous_data['frame']))
 
             count = 0
             for indx in range(70, len(previous_data['frame'])):
-                bb = self.detect_fire(previous_data['frame'][indx], previous_data['human_boxes'][indx])
+                
+                bb = self.detect_fire(previous_data['frame'][indx], previous_data['human_boxes'][indx-1])
                 # print(bb)
                 if len(bb) > 0:
                     count += 1
@@ -500,25 +502,25 @@ class SimpleABDetector:
                             self.tmpEvent = None
                             self.tmpEventTime = 0
                             print("Abandonment Detected: " + str(frame_index))
-                            # exit(0)
+                            exit(0)
 
                     # Check fire
                     if self.event_start_time is None and self.event_type is None:
                         print("Check fire")
                         check_fire = self.check_fire(previous_data, frame, background_score, background_image)
                         if check_fire: self.tmpEvent = 'fire'
-                        if check_fire == 'start'and self.tmpEventTime < 30 and self.tmpEvent == 'fire':
+                        if check_fire == 'start'and self.tmpEventTime < 10 and self.tmpEvent == 'fire':
                             self.tmpEvent = 'fire'
                             self.tmpEventTime += 1
                             print(self.tmpEventTime)
-                        elif check_fire == 'start' and self.tmpEventTime >= 30:
+                        elif check_fire == 'start' and self.tmpEventTime >= 10:
                             self.event_start_time = frame_index
                             self.event_type = 'FireDetection'
                             self.event_type_vis = 'Fire Detected'
                             self.tmpEvent = None
                             self.tmpEventTime = 0
                             print("Fire Detected: " + str(frame_index))
-                            # exit(0)
+                            exit(0)
                     elif self.event_start_time is not None and self.event_type == 'FireDetection':
                         check_fire = self.check_fire(previous_data, frame, background_score, background_image, started=True)
                         if not check_fire == 'end':
@@ -541,7 +543,7 @@ class SimpleABDetector:
                             self.tmpEvent = None
                             self.tmpEventTime = 0
                             print("Fall down Detected: " + str(frame_index))
-                            # exit(0)
+                            exit(0)
                     elif self.event_start_time is not None and self.event_type == 'Falldown':
                         check_fall = self.check_fall(previous_data, frame, background_score, background_image, started=True)
                         if check_fall == 'end':
@@ -564,7 +566,7 @@ class SimpleABDetector:
                             self.tmpEvent = None
                             self.tmpEventTime = 0
                             print("Fight Detected: " + str(frame_index))
-                            # exit(0)
+                            exit(0)
                     elif self.event_start_time is not None and self.event_type == 'Violence':
                         check_fight = self.check_fight(previous_data, frame, background_score, background_image, started=True)
                         if not check_fight:
