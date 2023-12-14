@@ -221,7 +221,7 @@ class SimpleABDetector:
                 # Re check fire
                 # print(diff_background)
                 print("Fire frame: " + str(count))
-                if count > 20 and diff_background > 50:
+                if count > 30 and diff_background > 50:
                     print("Fire Detected")
                     if self.debug:
                         print("Current: " + str(diff))
@@ -524,11 +524,11 @@ class SimpleABDetector:
                         print("Check fire")
                         check_fire = self.check_fire(previous_data, frame, background_score, background_image)
                         if check_fire: self.tmpEvent = 'fire'
-                        if check_fire == 'start'and self.tmpEventTime < 10 and self.tmpEvent == 'fire':
+                        if check_fire == 'start'and self.tmpEventTime < 20 and self.tmpEvent == 'fire':
                             self.tmpEvent = 'fire'
                             self.tmpEventTime += 1
                             print(self.tmpEventTime)
-                        elif check_fire == 'start' and self.tmpEventTime >= 10:
+                        elif check_fire == 'start' and self.tmpEventTime >= 20:
                             self.event_start_time = frame_index
                             self.event_type = 'FireDetection'
                             self.event_type_vis = 'Fire Detected'
