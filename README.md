@@ -17,11 +17,11 @@ Abnormal Behavior Recognition
 - [x] Train model
     - [x] Pose estimation model
 
-- [ ] Postprocessing data
+- [x] Postprocessing data
     - [x] Calculate the start and end time of abnormal behavior
 
-- [ ] Test model
-    - [ ] Tuning with classes of abnormal behavior
+- [x] Test model
+    - [x] Tuning with classes of abnormal behavior
 
 
 ## Acknowledgement
