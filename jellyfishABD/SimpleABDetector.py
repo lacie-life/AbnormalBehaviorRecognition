@@ -588,7 +588,7 @@ class SimpleABDetector:
                         check_fight = self.check_fight(previous_data, frame, background_score, background_image, started=True)
                         if not check_fight:
                             self.event_end_time = frame_index
-                            self.event_type = 'Normal'
+                            self.event_type_vis = 'Normal'
 
                     # Update previous data
                     if self.tmpEvent != self.preTmpEnvent:
