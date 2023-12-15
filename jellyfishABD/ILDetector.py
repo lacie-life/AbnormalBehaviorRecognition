@@ -18,9 +18,9 @@ class XMLInfo:
         self.abnormal_type = None
         self.video_path = None
 
-        if self.root.find(".//Filename") is not None:
-            path = xml_path.replace(".xml", ".mp4")
-            self.video_path = path
+        
+        path = xml_path.replace(".map", ".mp4")
+        self.video_path = path
 
         if self.numberArea == 1:
             area = self.root.find(".//DetectArea")
@@ -64,7 +64,7 @@ class ILDetector:
         self.event_type = 'Normal'
         self.event_start_time = None
         self.event_end_time = None
-        self.loitering_offset = 0
+        self.loitering_offset = None
         self.debug = debug
         self.visual = visual
         self.event_state = False
@@ -95,6 +95,7 @@ class ILDetector:
     def _is_in_abnormal_area(self, box, abnormal_area):
         area = np.array(abnormal_area)
 
+
         top_left = (box[0], box[1])
         top_right = (box[2], box[1])
         bottom_left = (box[0], box[3])
@@ -112,10 +113,19 @@ class ILDetector:
         return True
 
     # TODO: Re-check the time
-    def detect_abnormality(self, frame, frame_count):
+    def detect_abnormality(self, frame, frame_count, pre_frames):
 
-        human_boxes, cof = self.detect_human(frame)
+        human_boxes_each_frame = []
+        total_bb = 0
+        for frame in pre_frames:
+            bb, cof = self.detect_human(frame)
+            human_boxes_each_frame.append(bb)
+            if len(bb) > 0:
+                total_bb = total_bb + 1
+        
         current_time = frame_count
+
+        human_boxes = self.detect_human(frame)
 
         # print(human_boxes)
 
@@ -123,20 +133,22 @@ class ILDetector:
         area = np.array(self.data_infor['abnormal_area'])
         cv2.polylines(frame, [area], True, (0, 0, 255), 2)
 
-        if len(human_boxes) == 0 and self.event_start_time is not None and self.event_state is False:
+        if total_bb == 0 and self.event_start_time is not None and self.event_state is False:
             self.event_end_time = current_time
             self.event_type = 'Normal'
             self.event_state = True
 
         # check bounding box in abnormal area
         event_append = False
-        if len(human_boxes) > 0:
-            for box in human_boxes:
-                # print(box)
-                if self._is_in_abnormal_area(box, self.data_infor['abnormal_area']):
-                    event_append = True
-                    # draw bounding box
-                    cv2.rectangle(frame, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), (0, 255, 0), 2)
+        if total_bb > 0:
+            for bb_each in human_boxes_each_frame:
+                if len(bb_each) > 0:
+                    for box in bb_each:
+                    # print(box)
+                        if self._is_in_abnormal_area(box, self.data_infor['abnormal_area']):
+                            event_append = True
+                            # draw bounding box
+                            cv2.rectangle(frame, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), (0, 255, 0), 2)
 
         if event_append:
             if self.data_infor['abnormal_type'] == 'Intrusion':
@@ -159,7 +171,7 @@ class ILDetector:
 
                 if self.loitering_offset is None:
                     self.loitering_offset = current_time
-                if self.event_start_time is None and self.loitering_offset is not None and current_time - self.loitering_offset > 300:
+                if self.event_start_time is None and self.loitering_offset is not None and current_time - self.loitering_offset > 400:
                     self.event_type = 'Loitering'
                     self.event_start_time = current_time
 
@@ -197,11 +209,16 @@ class ILDetector:
 
         frame_count = 0
 
+        pre_frame = []
+
+        pre_frame.append(cap.read()[1])
+
         while True:
             ret, frame = cap.read()
             if not ret:
                 break
-            frame = self.detect_abnormality(frame, frame_count)
+            origin_frame = frame.copy()
+            frame = self.detect_abnormality(origin_frame, frame_count, pre_frame)
             
             result.write(frame)
             cv2.waitKey(1)
@@ -215,6 +232,11 @@ class ILDetector:
             if frame_count % 100 == 0:
                 print(frame_count)
             frame_count += 1
+
+            if len(pre_frame) == 10:
+                pre_frame = pre_frame[1:]
+
+            pre_frame.append(origin_frame)
 
         cap.release()
         result.release()
